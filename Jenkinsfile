@@ -32,22 +32,22 @@ pipeline {
 
         stage('Unit Tests') {
             steps {
-                bat 'dotnet test TrustLine.UnitTests/TrustLine.Tests.csproj --no-build --configuration Release --logger "trx;LogFileName=unit-tests.trx" --collect:"XPlat Code Coverage" --results-directory .\\TestResults\\Unit'
+                bat 'dotnet test TrustLine.UnitTests/TrustLine.Tests.csproj --no-build --configuration Release --logger "junit;LogFileName=unit-tests.xml" --collect:"XPlat Code Coverage" --results-directory .\\TestResults\\Unit'
             }
             post {
                 always {
-                    junit 'TestResults/Unit/**/*.trx'
+                    junit 'TestResults/Unit/unit-tests.xml'
                 }
             }
         }
 
         stage('Integration Tests') {
             steps {
-                bat 'dotnet test TrustLine.IntegrationTests/TrustLine.IntegrationTests.csproj --no-build --configuration Release --logger "trx;LogFileName=integration-tests.trx" --collect:"XPlat Code Coverage" --results-directory .\\TestResults\\Integration'
+                bat 'dotnet test TrustLine.IntegrationTests/TrustLine.IntegrationTests.csproj --no-build --configuration Release --logger "junit;LogFileName=integration-tests.xml" --collect:"XPlat Code Coverage" --results-directory .\\TestResults\\Integration'
             }
             post {
                 always {
-                    junit 'TestResults/Integration/**/*.trx'
+                    junit 'TestResults/Integration/integration-tests.xml'
                 }
             }
         }
