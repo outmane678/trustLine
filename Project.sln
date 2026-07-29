@@ -7,7 +7,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "TrustLineBackend", "TrustLi
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AnonymousComplaintsAPI", "TrustLineBackend\AnonymousComplaintsAPI.csproj", "{5D67CA36-2B6F-4275-AFBA-53BCDDA85EE2}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TrustLine.Tests", "TrustLine.Tests\TrustLine.Tests.csproj", "{5C389901-E5F7-44E0-915C-37E73AC380E1}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TrustLine.Tests", "TrustLine.UnitTests\TrustLine.Tests.csproj", "{5C389901-E5F7-44E0-915C-37E73AC380E1}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TrustLine.IntegrationTests", "TrustLine.IntegrationTests\TrustLine.IntegrationTests.csproj", "{A7DBD0B2-3AC9-4B96-99D2-A8158BF67810}"
 EndProject

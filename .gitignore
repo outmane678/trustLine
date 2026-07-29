@@ -1,0 +1,41 @@
+# Build outputs
+bin/
+obj/
+out/
+
+# .NET
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+*.nupkg
+*.snupkg
+project.lock.json
+project.fragment.lock.json
+artifacts/
+
+# Visual Studio
+.vs/
+*.rsuser
+*.db
+
+# Rider
+.idea/
+
+# Coverage
+TestResults/
+coverage/
+*.trx
+*.coveragexml
+*.cobertura.xml
+
+# Logs
+*.log
+
+# Secrets
+appsettings.Development.json
+**/secrets.json
+
+# OS
+.DS_Store
+Thumbs.db
