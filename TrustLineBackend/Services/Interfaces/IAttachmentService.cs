@@ -35,7 +35,7 @@ public interface IAttachmentService
     /// </summary>
     /// <param name="complaintId">The complaint ID</param>
     /// <returns>Stream containing the ZIP file</returns>
-    Task<Stream> GenerateComplaintAttachmentsZipAsync(int complaintId);
+    Task<Stream?> GenerateComplaintAttachmentsZipAsync(int complaintId);
 
     /// <summary>
     /// Updates an attachment record

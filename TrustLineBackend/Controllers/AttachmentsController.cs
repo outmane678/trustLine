@@ -100,6 +100,10 @@ namespace AnonymousComplaintsAPI.Controllers
 
                 return NoContent();
             }
+            catch (KeyNotFoundException)
+            {
+                return NotFound();
+            }
             catch (Exception ex)
             {
                 return StatusCode(500, $"Erreur lors de la mise à jour de la pièce jointe : {ex.Message}");
@@ -154,6 +158,10 @@ namespace AnonymousComplaintsAPI.Controllers
                 await _attachmentService.ArchiveAttachmentAsync(id);
                 return NoContent();
             }
+            catch (KeyNotFoundException)
+            {
+                return NotFound();
+            }
             catch (Exception ex)
             {
                 return StatusCode(500, $"Erreur lors de l'archivage de la pièce jointe : {ex.Message}");
@@ -171,6 +179,10 @@ namespace AnonymousComplaintsAPI.Controllers
                 await _attachmentService.RestoreAttachmentAsync(id);
                 return NoContent();
             }
+            catch (KeyNotFoundException)
+            {
+                return NotFound();
+            }
             catch (Exception ex)
             {
                 return StatusCode(500, $"Erreur lors de la restauration de la pièce jointe : {ex.Message}");
@@ -187,6 +199,10 @@ namespace AnonymousComplaintsAPI.Controllers
             {
                 await _attachmentService.DeleteAttachmentAsync(id);
                 return NoContent();
+            }
+            catch (KeyNotFoundException)
+            {
+                return NotFound();
             }
             catch (Exception ex)
             {

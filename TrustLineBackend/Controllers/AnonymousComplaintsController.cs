@@ -91,6 +91,22 @@ namespace AnonymousComplaintsAPI.Controllers
             }
         }
 
+        [HttpGet("user/{userId}")]
+        [RequirePermission("tl-v-report")]
+        public async Task<ActionResult<ComplaintsByUserResponse>> GetComplaintsByUserId(int userId, [FromQuery] PaginationRequest request)
+        {
+            try
+            {
+                await _ensureService.EnsureUserExistsAsync(userId);
+                var result = await _complaintService.GetComplaintsByUserAsync(userId, request);
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Erreur lors de la récupération des plaintes paginées : {ex.Message}");
+            }
+        }
+
         [HttpGet("{id}")]
         [RequirePermission("tl-r-report")]
         public async Task<ActionResult<AnonymousComplaintResponse>> GetComplaintDetails(int id)
@@ -165,6 +181,10 @@ namespace AnonymousComplaintsAPI.Controllers
 
                 return Ok(updatedComplaint);
             }
+            catch (KeyNotFoundException)
+            {
+                return NotFound();
+            }
             catch (Exception ex)
             {
                 return StatusCode(500, $"Une erreur est survenue lors de la mise à jour: {ex.Message}");
@@ -221,6 +241,10 @@ namespace AnonymousComplaintsAPI.Controllers
                 await _complaintService.ArchiveComplaintAsync(id);
                 return NoContent();
             }
+            catch (KeyNotFoundException)
+            {
+                return NotFound();
+            }
             catch (Exception ex)
             {
                 return StatusCode(500, $"Erreur lors de l'archivage : {ex.Message}");
@@ -235,6 +259,10 @@ namespace AnonymousComplaintsAPI.Controllers
             {
                 await _complaintService.RestoreComplaintAsync(id);
                 return NoContent();
+            }
+            catch (KeyNotFoundException)
+            {
+                return NotFound();
             }
             catch (Exception ex)
             {
@@ -252,12 +280,16 @@ namespace AnonymousComplaintsAPI.Controllers
                 if (complaintIds == null || complaintIds.Count < 2)
                     return BadRequest("Veuillez sélectionner au moins deux réclamations à fusionner.");
 
-                var mainComplaintId =await _complaintService.MergeComplaintsAsync(complaintIds);
+                var mainComplaintId = await _complaintService.MergeComplaintsAsync(complaintIds);
 
                 return Ok(new
                 {
                     message = $"Fusion effectuée avec succès : {complaintIds.Count()} signalements ont été fusionnés avec le signalement numéro {mainComplaintId}.",
                 });
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(ex.Message);
             }
             catch (ArgumentException ex)
             {

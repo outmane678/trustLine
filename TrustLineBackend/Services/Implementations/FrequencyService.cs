@@ -51,7 +51,24 @@ public class FrequencyService : IFrequencyService
         return FrequencyMapper.ToResponse(frequency);
     }
 
-    public async Task ArchiveFrequencyAsync(int id) => await _frequencyRepository.ArchiveAsync(id);
-    public async Task RestoreFrequencyAsync(int id) => await _frequencyRepository.RestoreAsync(id);
-    public async Task DeleteFrequencyAsync(int id) => await _frequencyRepository.DeleteAsync(id);
+    public async Task ArchiveFrequencyAsync(int id)
+    {
+        var entity = await _frequencyRepository.GetByIdAsync(id);
+        if (entity == null) throw new KeyNotFoundException($"Frequency {id} not found");
+        await _frequencyRepository.ArchiveAsync(id);
+    }
+
+    public async Task RestoreFrequencyAsync(int id)
+    {
+        var entity = await _frequencyRepository.GetByIdAsync(id);
+        if (entity == null) throw new KeyNotFoundException($"Frequency {id} not found");
+        await _frequencyRepository.RestoreAsync(id);
+    }
+
+    public async Task DeleteFrequencyAsync(int id)
+    {
+        var entity = await _frequencyRepository.GetByIdAsync(id);
+        if (entity == null) throw new KeyNotFoundException($"Frequency {id} not found");
+        await _frequencyRepository.DeleteAsync(id);
+    }
 }

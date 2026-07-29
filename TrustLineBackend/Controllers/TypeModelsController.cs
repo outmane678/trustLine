@@ -94,6 +94,10 @@ namespace AnonymousComplaintsAPI.Controllers
 
                 return Ok();
             }
+            catch (KeyNotFoundException)
+            {
+                return NotFound();
+            }
             catch (Exception ex)
             {
                 return StatusCode(500, $"Erreur lors de la mise à jour du type : {ex.Message}");
@@ -127,6 +131,10 @@ namespace AnonymousComplaintsAPI.Controllers
                     await _typeService.ArchiveTypeWithCategoriesAsync(id);
                     return NoContent();
                 }
+                catch (KeyNotFoundException)
+                {
+                    return NotFound();
+                }
                 catch (Exception ex)
                 {
                     return StatusCode(500, $"Erreur lors de l'archivage du type : {ex.Message}");
@@ -143,12 +151,16 @@ namespace AnonymousComplaintsAPI.Controllers
                     await _typeService.RestoreTypeWithCategoriesAsync(id);
                     return NoContent();
                 }
+                catch (KeyNotFoundException)
+                {
+                    return NotFound();
+                }
                 catch (Exception ex)
                 {
                     return StatusCode(500, $"Erreur lors de la restauration du type : {ex.Message}");
                 }
             }
-        
+
 
 
                 // DELETE: api/TypeModels/5
@@ -161,6 +173,10 @@ namespace AnonymousComplaintsAPI.Controllers
                 {
                     await _typeService.ArchiveTypeWithCategoriesAsync(id);
                     return NoContent();
+                }
+                catch (KeyNotFoundException)
+                {
+                    return NotFound();
                 }
                 catch (Exception ex)
                 {

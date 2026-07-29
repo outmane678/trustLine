@@ -71,6 +71,10 @@ namespace AnonymousComplaintsAPI.Controllers
 
                 return NoContent();
             }
+            catch (KeyNotFoundException)
+            {
+                return NotFound();
+            }
             catch (Exception ex)
             {
                 return StatusCode(500, $"Erreur lors de la mise à jour de la fréquence : {ex.Message}");
@@ -104,6 +108,10 @@ namespace AnonymousComplaintsAPI.Controllers
                 await _frequencyService.ArchiveFrequencyAsync(id);
                 return NoContent();
             }
+            catch (KeyNotFoundException)
+            {
+                return NotFound();
+            }
             catch (Exception ex)
             {
                 return StatusCode(500, $"Erreur lors de l'archivage de la fréquence : {ex.Message}");
@@ -120,6 +128,10 @@ namespace AnonymousComplaintsAPI.Controllers
                 await _frequencyService.RestoreFrequencyAsync(id);
                 return NoContent();
             }
+            catch (KeyNotFoundException)
+            {
+                return NotFound();
+            }
             catch (Exception ex)
             {
                 return StatusCode(500, $"Erreur lors de la restauration de la fréquence : {ex.Message}");
@@ -135,6 +147,10 @@ namespace AnonymousComplaintsAPI.Controllers
             {
                 await _frequencyService.DeleteFrequencyAsync(id);
                 return NoContent();
+            }
+            catch (KeyNotFoundException)
+            {
+                return NotFound();
             }
             catch (Exception ex)
             {

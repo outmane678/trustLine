@@ -56,11 +56,11 @@ namespace AnonymousComplaintsAPI.Controllers
 
         [HttpGet("byType/{typeId}")]
         [RequirePermission("tl-c-report")]
-        public async Task<ActionResult<PaginatedResponse<CategoryResponse>>> GetCategoriesByType(int typeId, [FromQuery] PaginationRequest request)
+        public async Task<ActionResult<IEnumerable<CategoryResponse>>> GetCategoriesByType(int typeId)
         {
             try
             {
-                var categories = await _categoryService.GetCategoriesByTypePaginatedAsync(typeId, request);
+                var categories = await _categoryService.GetCategoriesByTypeAsync(typeId);
                 return Ok(categories);
             }
             catch (Exception ex)
@@ -117,6 +117,10 @@ namespace AnonymousComplaintsAPI.Controllers
 
                 return Ok();
             }
+            catch (KeyNotFoundException)
+            {
+                return NotFound();
+            }
             catch (Exception ex)
             {
                 return StatusCode(500, $"Erreur lors de la mise à jour de la catégorie : {ex.Message}");
@@ -149,6 +153,10 @@ namespace AnonymousComplaintsAPI.Controllers
                 await _categoryService.ArchiveCategoryAsync(id);
                 return NoContent();
             }
+            catch (KeyNotFoundException)
+            {
+                return NotFound();
+            }
             catch (Exception ex)
             {
                 return StatusCode(500, $"Erreur lors de l'archivage de la catégorie : {ex.Message}");
@@ -165,6 +173,10 @@ namespace AnonymousComplaintsAPI.Controllers
                 await _categoryService.RestoreCategoryAsync(id);
                 return NoContent();
             }
+            catch (KeyNotFoundException)
+            {
+                return NotFound();
+            }
             catch (Exception ex)
             {
                 return StatusCode(500, $"Erreur lors de la restauration de la catégorie : {ex.Message}");
@@ -179,6 +191,10 @@ namespace AnonymousComplaintsAPI.Controllers
             {
                 await _categoryService.DeleteCategoryAsync(id);
                 return NoContent();
+            }
+            catch (KeyNotFoundException)
+            {
+                return NotFound();
             }
             catch (Exception ex)
             {

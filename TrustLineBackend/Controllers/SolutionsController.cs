@@ -93,6 +93,10 @@ namespace AnonymousComplaintsAPI.Controllers
 
                 return NoContent();
             }
+            catch (KeyNotFoundException)
+            {
+                return NotFound();
+            }
             catch (Exception ex)
             {
                 return StatusCode(500, $"Erreur lors de la mise à jour de la solution : {ex.Message}");
@@ -110,6 +114,14 @@ namespace AnonymousComplaintsAPI.Controllers
                 var createdSolution = await _solutionService.CreateSolutionForComplaintAndMergedAsync(dto);
 
                 return CreatedAtAction("GetSolution", new { id = createdSolution.SolutionID }, createdSolution);
+            }
+            catch (KeyNotFoundException)
+            {
+                return NotFound();
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(ex.Message);
             }
             catch (Exception ex)
             {
@@ -129,6 +141,10 @@ namespace AnonymousComplaintsAPI.Controllers
                 await _solutionService.ArchiveSolutionAsync(id);
                 return NoContent();
             }
+            catch (KeyNotFoundException)
+            {
+                return NotFound();
+            }
             catch (Exception ex)
             {
                 return StatusCode(500, $"Erreur lors de l'archivage de la solution : {ex.Message}");
@@ -146,6 +162,10 @@ namespace AnonymousComplaintsAPI.Controllers
                 await _solutionService.RestoreSolutionAsync(id);
                 return NoContent();
             }
+            catch (KeyNotFoundException)
+            {
+                return NotFound();
+            }
             catch (Exception ex)
             {
                 return StatusCode(500, $"Erreur lors de la restauration de la solution : {ex.Message}");
@@ -162,6 +182,10 @@ namespace AnonymousComplaintsAPI.Controllers
             {
                 await _solutionService.DeleteSolutionAsync(id);
                 return NoContent();
+            }
+            catch (KeyNotFoundException)
+            {
+                return NotFound();
             }
             catch (Exception ex)
             {

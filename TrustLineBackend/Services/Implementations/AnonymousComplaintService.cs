@@ -7,6 +7,7 @@ using AnonymousComplaintsAPI.Services.EnsureServices;
 using AnonymousComplaintsAPI.Services.Interfaces;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 
 namespace AnonymousComplaintsAPI.Services.Implementations;
 
@@ -91,12 +92,13 @@ public class AnonymousComplaintService : IAnonymousComplaintService
         if (!typeExists)
             throw new ArgumentException($"Type with ID {request.TypeID.Value} does not exist");
 
-        // Créer une stratégie d'exécution compatible avec les transactions
         var strategy = _complaintRepository.CreateExecutionStrategy();
 
         return await strategy.ExecuteAsync(async () =>
         {
-            await using var transaction = await _complaintRepository.BeginTransactionAsync();
+            IDbContextTransaction? transaction = null;
+            try { transaction = await _complaintRepository.BeginTransactionAsync(); }
+            catch (InvalidOperationException) { /* InMemory does not support transactions */ }
 
             try
             {
@@ -125,9 +127,11 @@ public class AnonymousComplaintService : IAnonymousComplaintService
                     await HandleFileUploadsAsync(createdComplaint.AnonymousComplaintId, files, userId);
                 }
 
-                // Si tout s'est bien passé, commit la transaction
-                await transaction.CommitAsync();
-                _logger.LogInformation("Transaction committed successfully for complaint {ComplaintId}", createdComplaint.AnonymousComplaintId);
+                if (transaction != null)
+                {
+                    await transaction.CommitAsync();
+                    _logger.LogInformation("Transaction committed successfully for complaint {ComplaintId}", createdComplaint.AnonymousComplaintId);
+                }
 
                 // Reload complaint with details
                 var complaintWithDetails = await _complaintRepository.GetWithDetailsAsync(createdComplaint.AnonymousComplaintId);
@@ -135,10 +139,17 @@ public class AnonymousComplaintService : IAnonymousComplaintService
             }
             catch (Exception ex)
             {
-                // En cas d'erreur, rollback
-                await transaction.RollbackAsync();
-                _logger.LogError(ex, "Error creating complaint - transaction rolled back");
+                if (transaction != null)
+                {
+                    await transaction.RollbackAsync();
+                    _logger.LogError(ex, "Error creating complaint - transaction rolled back");
+                }
                 throw;
+            }
+            finally
+            {
+                if (transaction != null)
+                    await transaction.DisposeAsync();
             }
         });
     }
@@ -169,20 +180,21 @@ public class AnonymousComplaintService : IAnonymousComplaintService
             }
         }
 
-        // Create execution strategy for transaction (handles retry for transient errors)
         var strategy = _complaintRepository.CreateExecutionStrategy();
 
         return await strategy.ExecuteAsync(async () =>
         {
-            await using var transaction = await _complaintRepository.BeginTransactionAsync();
+            IDbContextTransaction? transaction = null;
+            try { transaction = await _complaintRepository.BeginTransactionAsync(); }
+            catch (InvalidOperationException) { /* InMemory does not support transactions */ }
 
             try
             {
                 // Get existing complaint
                 var complaint = await _complaintRepository.GetByIdAsync(id);
-                if (complaint == null)
+                if (complaint == null || complaint.Archived == true)
                 {
-                    throw new KeyNotFoundException($"Complaint with ID {id} not found");
+                    throw new KeyNotFoundException($"Complaint with ID {id} not found or archived");
                 }
 
                 // Validate TypeID if provided
@@ -232,9 +244,11 @@ public class AnonymousComplaintService : IAnonymousComplaintService
                     await HandleFileUploadsAsync(id, files, complaint.CreatedBy.Value);
                 }
 
-                // Commit transaction if everything is successful
-                await transaction.CommitAsync();
-                _logger.LogInformation("Transaction committed successfully for complaint {ComplaintId}", id);
+                if (transaction != null)
+                {
+                    await transaction.CommitAsync();
+                    _logger.LogInformation("Transaction committed successfully for complaint {ComplaintId}", id);
+                }
 
                 // Reload complaint with details
                 var complaintWithDetails = await _complaintRepository.GetWithDetailsAsync(id);
@@ -242,10 +256,17 @@ public class AnonymousComplaintService : IAnonymousComplaintService
             }
             catch (Exception ex)
             {
-                // Rollback in case of any failure
-                await transaction.RollbackAsync();
-                _logger.LogError(ex, "Error updating complaint {ComplaintId} - transaction rolled back", id);
+                if (transaction != null)
+                {
+                    await transaction.RollbackAsync();
+                    _logger.LogError(ex, "Error updating complaint {ComplaintId} - transaction rolled back", id);
+                }
                 throw;
+            }
+            finally
+            {
+                if (transaction != null)
+                    await transaction.DisposeAsync();
             }
         });
     }
@@ -272,9 +293,14 @@ public class AnonymousComplaintService : IAnonymousComplaintService
                 }
             }
 
+            if (complaints.Count < complaintIds.Count)
+            {
+                throw new KeyNotFoundException("One or more specified complaints were not found");
+            }
+
             if (complaints.Count < 2)
             {
-                throw new ArgumentException("Could not find all specified complaints");
+                throw new ArgumentException("At least 2 valid complaints are required for merging");
             }
 
             // Vérification du type
@@ -466,12 +492,17 @@ public class AnonymousComplaintService : IAnonymousComplaintService
 
     public async Task ArchiveComplaintAsync(int id)
     {
+        var entity = await _complaintRepository.GetByIdAsync(id);
+        if (entity == null) throw new KeyNotFoundException($"Complaint {id} not found");
         await _complaintRepository.ArchiveAsync(id);
         _logger.LogInformation("Complaint {ComplaintId} archived", id);
     }
 
     public async Task RestoreComplaintAsync(int id)
     {
+        var entity = await _complaintRepository.GetByIdAsync(id);
+        if (entity == null || entity.Archived != true)
+            throw new KeyNotFoundException($"Complaint {id} not found or not archived");
         await _complaintRepository.RestoreAsync(id);
         _logger.LogInformation("Complaint {ComplaintId} restored", id);
     }

@@ -86,9 +86,26 @@ public class CategoryService : ICategoryService
         return CategoryMapper.ToResponse(category);
     }
 
-    public async Task ArchiveCategoryAsync(int id) => await _categoryRepository.ArchiveAsync(id);
-    public async Task RestoreCategoryAsync(int id) => await _categoryRepository.RestoreAsync(id);
-    public async Task DeleteCategoryAsync(int id) => await _categoryRepository.DeleteAsync(id);
+    public async Task ArchiveCategoryAsync(int id)
+    {
+        var entity = await _categoryRepository.GetByIdAsync(id);
+        if (entity == null) throw new KeyNotFoundException($"Category {id} not found");
+        await _categoryRepository.ArchiveAsync(id);
+    }
+
+    public async Task RestoreCategoryAsync(int id)
+    {
+        var entity = await _categoryRepository.GetByIdAsync(id);
+        if (entity == null) throw new KeyNotFoundException($"Category {id} not found");
+        await _categoryRepository.RestoreAsync(id);
+    }
+
+    public async Task DeleteCategoryAsync(int id)
+    {
+        var entity = await _categoryRepository.GetByIdAsync(id);
+        if (entity == null) throw new KeyNotFoundException($"Category {id} not found");
+        await _categoryRepository.DeleteAsync(id);
+    }
 
     public async Task<PaginatedResponse<CategoryResponse>> GetCategoriesPaginatedAsync(PaginationRequest request)
     {

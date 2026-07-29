@@ -60,6 +60,8 @@ public class TypeService : ITypeService
 
     public async Task ArchiveTypeWithCategoriesAsync(int id)
     {
+        var type = await _typeRepository.GetByIdAsync(id);
+        if (type == null) throw new KeyNotFoundException($"Type {id} not found");
         await _typeRepository.ArchiveAsync(id);
         var categories = await _context.Categories.Where(c => c.TypeId == id).ToListAsync();
         foreach (var c in categories) c.Archived = true;
@@ -68,6 +70,8 @@ public class TypeService : ITypeService
 
     public async Task RestoreTypeWithCategoriesAsync(int id)
     {
+        var type = await _typeRepository.GetByIdAsync(id);
+        if (type == null) throw new KeyNotFoundException($"Type {id} not found");
         await _typeRepository.RestoreAsync(id);
         var categories = await _context.Categories.Where(c => c.TypeId == id).ToListAsync();
         foreach (var c in categories) c.Archived = false;

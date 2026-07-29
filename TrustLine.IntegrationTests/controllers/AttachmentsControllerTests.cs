@@ -77,7 +77,8 @@ namespace TrustLine.IntegrationTests.Controllers
                 AnonymousComplaintId = complaintId,
                 Description = "Complaint with files",
                 State = "SUBMITTED",
-                Archived = false
+                Archived = false,
+                IsIdentityVisible = false
             };
             _context.AnonymousComplaints.Add(complaint);
 
@@ -192,7 +193,8 @@ namespace TrustLine.IntegrationTests.Controllers
                 AnonymousComplaintId = 300,
                 Description = "Parent complaint",
                 State = "SUBMITTED",
-                Archived = false
+                Archived = false,
+                IsIdentityVisible = false
             });
             await _context.SaveChangesAsync();
 
@@ -412,7 +414,8 @@ namespace TrustLine.IntegrationTests.Controllers
                 AnonymousComplaintId = 800,
                 Description = "No files complaint",
                 State = "SUBMITTED",
-                Archived = false
+                Archived = false,
+                IsIdentityVisible = false
             });
             await _context.SaveChangesAsync();
 

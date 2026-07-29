@@ -86,7 +86,8 @@ namespace TrustLine.IntegrationTests.Controllers
                 CreatedBy = createdBy,
                 State = state,
                 Archived = archived,
-                CreatedAt = createdAt ?? DateTime.Now
+                CreatedAt = createdAt ?? DateTime.Now,
+                IsIdentityVisible = false
             };
             _context.AnonymousComplaints.Add(complaint);
             await _context.SaveChangesAsync();
@@ -193,14 +194,14 @@ namespace TrustLine.IntegrationTests.Controllers
             var (user, type) = await SeedUserAndTypeAsync(userId: 1, typeId: 1);
 
             var formData = new MultipartFormDataContent();
-            formData.Add(new StringContent("Complaint with file"), "Description");
+            formData.Add(new StringContent("This complaint includes an attached file for testing"), "Description");
             formData.Add(new StringContent("1"), "CreatedBy");
             formData.Add(new StringContent("1"), "TypeID");
 
-            // Add a fake file
-            var fileContent = new ByteArrayContent(new byte[] { 0x01, 0x02, 0x03 });
-            fileContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/octet-stream");
-            formData.Add(fileContent, "File", "testfile.txt");
+            // Add a valid PDF file (magic bytes %PDF)
+            var fileContent = new ByteArrayContent(new byte[] { 0x25, 0x50, 0x44, 0x46, 0x2D, 0x31, 0x2E, 0x34 });
+            fileContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/pdf");
+            formData.Add(fileContent, "File", "testfile.pdf");
 
             var response = await _client.PostAsync("/api/AnonymousComplaints", formData);
 
@@ -218,7 +219,7 @@ namespace TrustLine.IntegrationTests.Controllers
 
             var formData = new MultipartFormDataContent();
             formData.Add(new StringContent("300"), "Id");
-            formData.Add(new StringContent("Updated Description"), "Description");
+            formData.Add(new StringContent("Updated Description Valid"), "Description");
             formData.Add(new StringContent("1"), "CreatedBy");
             formData.Add(new StringContent("1"), "TypeID");
 
@@ -252,7 +253,7 @@ namespace TrustLine.IntegrationTests.Controllers
 
             var formData = new MultipartFormDataContent();
             formData.Add(new StringContent("9999"), "Id");
-            formData.Add(new StringContent("Updated"), "Description");
+            formData.Add(new StringContent("This is the updated complaint description here"), "Description");
             formData.Add(new StringContent("1"), "CreatedBy");
 
             var response = await _client.PutAsync("/api/AnonymousComplaints/9999", formData);
@@ -268,7 +269,7 @@ namespace TrustLine.IntegrationTests.Controllers
 
             var formData = new MultipartFormDataContent();
             formData.Add(new StringContent("302"), "Id");
-            formData.Add(new StringContent("Updated"), "Description");
+            formData.Add(new StringContent("Updated archived complaint info"), "Description");
             formData.Add(new StringContent("1"), "CreatedBy");
 
             var response = await _client.PutAsync("/api/AnonymousComplaints/302", formData);
@@ -415,7 +416,7 @@ namespace TrustLine.IntegrationTests.Controllers
         [Fact]
         public async Task ChangeState_SubmittedComplaint_ReturnsOk()
         {
-            await SeedComplaintAsync(700, "Submitted Complaint", state: "SUBMITTED");
+            await SeedComplaintAsync(700, "Submitted Complaint", state: "DÉPOSÉ");
 
             var response = await _client.PutAsync("/api/AnonymousComplaints/ChangeState/700", null);
 

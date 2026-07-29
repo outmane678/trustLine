@@ -102,7 +102,24 @@ public class SolutionService : ISolutionService
         return SolutionMapper.ToResponse(solution,null);
     }
 
-    public async Task ArchiveSolutionAsync(int id) => await _solutionRepository.ArchiveAsync(id);
-    public async Task RestoreSolutionAsync(int id) => await _solutionRepository.RestoreAsync(id);
-    public async Task DeleteSolutionAsync(int id) => await _solutionRepository.DeleteAsync(id);
+    public async Task ArchiveSolutionAsync(int id)
+    {
+        var entity = await _solutionRepository.GetByIdAsync(id);
+        if (entity == null) throw new KeyNotFoundException($"Solution {id} not found");
+        await _solutionRepository.ArchiveAsync(id);
+    }
+
+    public async Task RestoreSolutionAsync(int id)
+    {
+        var entity = await _solutionRepository.GetByIdAsync(id);
+        if (entity == null) throw new KeyNotFoundException($"Solution {id} not found");
+        await _solutionRepository.RestoreAsync(id);
+    }
+
+    public async Task DeleteSolutionAsync(int id)
+    {
+        var entity = await _solutionRepository.GetByIdAsync(id);
+        if (entity == null) throw new KeyNotFoundException($"Solution {id} not found");
+        await _solutionRepository.DeleteAsync(id);
+    }
 }

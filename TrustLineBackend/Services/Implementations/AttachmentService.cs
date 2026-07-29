@@ -26,7 +26,7 @@ public class AttachmentService : IAttachmentService
     public async Task<AttachmentResponse?> GetAttachmentAsync(int id)
     {
         var attachment = await _attachmentRepository.GetByIdAsync(id);
-        return attachment != null ? AttachmentMapper.ToResponse(attachment) : null;
+        return (attachment == null || attachment.Archived == true) ? null : AttachmentMapper.ToResponse(attachment);
     }
 
     public async Task<IEnumerable<AttachmentResponse>> GetAllAttachmentsAsync()
@@ -57,18 +57,20 @@ public class AttachmentService : IAttachmentService
         return AttachmentMapper.ToResponse(created);
     }
 
-    public async Task<Stream> GenerateComplaintAttachmentsZipAsync(int complaintId)
+    public async Task<Stream?> GenerateComplaintAttachmentsZipAsync(int complaintId)
     {
         var attachments = await _attachmentRepository.GetByComplaintIdAsync(complaintId);
         var filePaths = attachments.Where(a => !string.IsNullOrEmpty(a.FilePath)).Select(a => a.FilePath!).ToList();
         var existingFiles = filePaths.Where(path => _fileService.FileExists(path)).ToList();
+        if (!attachments.Any())
+            return null;
         return await _fileService.CreateZipFromFilesAsync(existingFiles, $"Complaint_{complaintId}_Attachments.zip");
     }
 
     public async Task<AttachmentResponse> UpdateAttachmentAsync(int id, AttachmentResponse attachmentDto)
     {
         var attachment = await _attachmentRepository.GetByIdAsync(id);
-        if (attachment == null) throw new KeyNotFoundException($"Attachment {id} not found");
+        if (attachment == null || attachment.Archived == true) throw new KeyNotFoundException($"Attachment {id} not found");
         attachment.FileName = attachmentDto.FileName;
         attachment.AnonymousComplaintId = attachmentDto.AnonymousComplaintID;
         await _attachmentRepository.UpdateAsync(attachment);
@@ -90,7 +92,12 @@ public class AttachmentService : IAttachmentService
         return AttachmentMapper.ToResponse(created);
     }
 
-    public async Task ArchiveAttachmentAsync(int id) => await _attachmentRepository.ArchiveAsync(id);
+    public async Task ArchiveAttachmentAsync(int id)
+    {
+        var entity = await _attachmentRepository.GetByIdAsync(id);
+        if (entity == null) throw new KeyNotFoundException($"Attachment {id} not found");
+        await _attachmentRepository.ArchiveAsync(id);
+    }
 
     public async Task ArchiveMultipleAttachmentsAsync(int complaintId, List<int> attachmentIds)
     {
@@ -103,12 +110,18 @@ public class AttachmentService : IAttachmentService
         await _attachmentRepository.ArchiveBatchAsync(attachmentIds);
     }
 
-    public async Task RestoreAttachmentAsync(int id) => await _attachmentRepository.RestoreAsync(id);
+    public async Task RestoreAttachmentAsync(int id)
+    {
+        var entity = await _attachmentRepository.GetByIdAsync(id);
+        if (entity == null) throw new KeyNotFoundException($"Attachment {id} not found");
+        await _attachmentRepository.RestoreAsync(id);
+    }
 
     public async Task DeleteAttachmentAsync(int id)
     {
         var attachment = await _attachmentRepository.GetByIdAsync(id);
-        if (attachment != null && !string.IsNullOrEmpty(attachment.FilePath))
+        if (attachment == null) throw new KeyNotFoundException($"Attachment {id} not found");
+        if (!string.IsNullOrEmpty(attachment.FilePath))
             await _fileService.DeleteFileAsync(attachment.FilePath);
         await _attachmentRepository.DeleteAsync(id);
     }

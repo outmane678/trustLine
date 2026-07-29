@@ -75,7 +75,8 @@ namespace TrustLine.IntegrationTests.Controllers
                 AnonymousComplaintId = id,
                 Description = "Complaint " + id,
                 State = state,
-                Archived = false
+                Archived = false,
+                IsIdentityVisible = false
             };
             _context.AnonymousComplaints.Add(complaint);
             await _context.SaveChangesAsync();
@@ -155,7 +156,7 @@ namespace TrustLine.IntegrationTests.Controllers
 
             var dto = new SolutionResponse
             {
-                Content = "New solution",
+                Content = "This is a brand new solution for the complaint",
                 AnonymousComplaintID = 300,
                 Archived = false,
                 CreatedAt = DateTime.Now
@@ -182,14 +183,15 @@ namespace TrustLine.IntegrationTests.Controllers
                 Description = "Fused complaint",
                 State = "IN PROGRESS",
                 Archived = false,
-                FusionWithId = 310
+                FusionWithId = 310,
+                IsIdentityVisible = false
             };
             _context.AnonymousComplaints.Add(fused);
             await _context.SaveChangesAsync();
 
             var dto = new SolutionResponse
             {
-                Content = "Solution for merged",
+                Content = "This is the solution for the merged complaint",
                 AnonymousComplaintID = 310,
                 Archived = false,
                 CreatedAt = DateTime.Now
@@ -225,7 +227,7 @@ namespace TrustLine.IntegrationTests.Controllers
             var dto = new SolutionResponse
             {
                 SolutionID = 400,
-                Content = "Updated content",
+                Content = "This is the updated content for solution",
                 Archived = false
             };
 
@@ -234,7 +236,7 @@ namespace TrustLine.IntegrationTests.Controllers
 
             var sol = await _context.Solutions.FindAsync(400);
             await _context.Entry(sol!).ReloadAsync();
-            sol.Content.Should().Be("Updated content");
+            sol.Content.Should().Be("This is the updated content for solution");
         }
 
         [Fact]
@@ -245,7 +247,7 @@ namespace TrustLine.IntegrationTests.Controllers
             var dto = new SolutionResponse
             {
                 SolutionID = 999,
-                Content = "Mismatch"
+                Content = "This is a mismatch solution content here"
             };
 
             var response = await _client.PutAsJsonAsync("/api/Solutions/401", dto);
@@ -258,7 +260,7 @@ namespace TrustLine.IntegrationTests.Controllers
             var dto = new SolutionResponse
             {
                 SolutionID = 9999,
-                Content = "Ghost"
+                Content = "This is a ghost solution content here"
             };
 
             var response = await _client.PutAsJsonAsync("/api/Solutions/9999", dto);
@@ -348,7 +350,7 @@ namespace TrustLine.IntegrationTests.Controllers
             // 1. Create
             var createDto = new SolutionResponse
             {
-                Content = "Lifecycle solution",
+                Content = "This is a lifecycle solution content here",
                 AnonymousComplaintID = 800,
                 Archived = false,
                 CreatedAt = DateTime.Now
@@ -366,7 +368,7 @@ namespace TrustLine.IntegrationTests.Controllers
             var updateDto = new SolutionResponse
             {
                 SolutionID = id,
-                Content = "Updated lifecycle",
+                Content = "Updated lifecycle solution content text",
                 Archived = false
             };
             var updateResp = await _client.PutAsJsonAsync($"/api/Solutions/{id}", updateDto);
