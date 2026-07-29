@@ -52,16 +52,7 @@ pipeline {
             }
         }
 
-        stage('Publish Coverage') {
-            steps {
-                publishCoverage(
-                    adapters: [
-                        coberturaAdapter('TestResults/**/coverage.cobertura.xml')
-                    ],
-                    sourceFileResolver: sourceFiles('STORE_ALL_BUILD')
-                )
-            }
-        }
+
     }
 
     post {
