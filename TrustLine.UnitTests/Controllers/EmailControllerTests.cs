@@ -1,6 +1,7 @@
 using Xunit;
 using Moq;
 using Microsoft.AspNetCore.Mvc;
+using System;
 using System.Threading.Tasks;
 
 using AnonymousComplaintsAPI.Controllers;
@@ -59,9 +60,8 @@ namespace TrustLine.Tests.Controllers
         // EXCEPTION CASE
         // =========================
         [Fact]
-        public async Task SendEmail_ShouldThrowException_WhenServiceFails()
+        public async Task SendEmail_ShouldReturn500_WhenServiceFails()
         {
-            // Arrange
             var controller = CreateController();
 
             var request = new SendEmailRequest
@@ -73,10 +73,12 @@ namespace TrustLine.Tests.Controllers
 
             _emailServiceMock
                 .Setup(x => x.SendEmailAsync(It.IsAny<SendEmailRequest>()))
-                .ThrowsAsync(new System.Exception("SMTP error"));
+                .ThrowsAsync(new Exception("SMTP error"));
 
-            // Act & Assert
-            await Assert.ThrowsAsync<System.Exception>(() => controller.SendEmail(request));
+            var result = await controller.SendEmail(request);
+
+            var statusResult = Assert.IsType<ObjectResult>(result);
+            Assert.Equal(500, statusResult.StatusCode);
         }
     }
 }

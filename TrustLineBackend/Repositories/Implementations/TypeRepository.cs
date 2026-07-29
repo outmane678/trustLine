@@ -88,16 +88,14 @@ namespace AnonymousComplaintsAPI.Repositories.Implementations
 
         public async Task ArchiveAsync(int id)
         {
-            await _context.Types
-                .Where(t => t.TypeId == id)
-                .ExecuteUpdateAsync(t => t.SetProperty(x => x.Archived, true));
+            var entity = await _context.Types.FindAsync(id);
+            if (entity != null) { entity.Archived = true; await _context.SaveChangesAsync(); }
         }
 
         public async Task RestoreAsync(int id)
         {
-            await _context.Types
-                .Where(t => t.TypeId == id)
-                .ExecuteUpdateAsync(t => t.SetProperty(x => x.Archived, false));
+            var entity = await _context.Types.FindAsync(id);
+            if (entity != null) { entity.Archived = false; await _context.SaveChangesAsync(); }
         }
 
         public async Task<(IEnumerable<Models.Entities.Type> Data, int Total)> GetPaginatedAsync(

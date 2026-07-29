@@ -26,8 +26,19 @@ namespace TrustLine.Tests.Repositories
             return new AnonymousComplaintRepository(context);
         }
 
+        private static AnonymousComplaint Complaint(string description, int? id = null, int? createdBy = null, bool? archived = false, string? state = null)
+            => new AnonymousComplaint
+            {
+                AnonymousComplaintId = id ?? 0,
+                Description = description,
+                CreatedBy = createdBy,
+                Archived = archived,
+                State = state,
+                IsIdentityVisible = false
+            };
+
         // ============================
-        // ✅ CREATE
+        // CREATE
         // ============================
         [Fact]
         public async Task CreateAsync_AddsComplaint()
@@ -35,245 +46,178 @@ namespace TrustLine.Tests.Repositories
             var context = CreateDb();
             var repo = CreateRepo(context);
 
-            var complaint = new AnonymousComplaint
-            {
-                Description = "Test"
-            };
-
-            await repo.CreateAsync(complaint);
+            await repo.CreateAsync(Complaint("Test"));
 
             Assert.Equal(1, context.AnonymousComplaints.Count());
         }
 
         // ============================
-        // ✅ GET ALL
+        // GET ALL
         // ============================
         [Fact]
         public async Task GetAllAsync_ReturnsAll()
         {
             var context = CreateDb();
 
-            context.AnonymousComplaints.Add(new AnonymousComplaint { Description = "A" });
-            context.AnonymousComplaints.Add(new AnonymousComplaint { Description = "B" });
-
+            context.AnonymousComplaints.Add(Complaint("A"));
+            context.AnonymousComplaints.Add(Complaint("B"));
             await context.SaveChangesAsync();
 
-            var repo = CreateRepo(context);
-
-            var result = await repo.GetAllAsync();
+            var result = await CreateRepo(context).GetAllAsync();
 
             Assert.Equal(2, result.Count());
         }
 
         // ============================
-        // ✅ GET BY ID
+        // GET BY ID
         // ============================
         [Fact]
         public async Task GetByIdAsync_ReturnsCorrect()
         {
             var context = CreateDb();
 
-            context.AnonymousComplaints.Add(new AnonymousComplaint
-            {
-                AnonymousComplaintId = 1,
-                Description = "Test"
-            });
-
+            context.AnonymousComplaints.Add(Complaint("Test", id: 1));
             await context.SaveChangesAsync();
 
-            var repo = CreateRepo(context);
-
-            var result = await repo.GetByIdAsync(1);
+            var result = await CreateRepo(context).GetByIdAsync(1);
 
             Assert.NotNull(result);
         }
 
         // ============================
-        // ✅ EXISTS
+        // EXISTS
         // ============================
         [Fact]
         public async Task ExistsAsync_ReturnsTrue()
         {
             var context = CreateDb();
 
-            context.AnonymousComplaints.Add(new AnonymousComplaint
-            {
-                AnonymousComplaintId = 1,
-                Description = "Test"
-            });
-
+            context.AnonymousComplaints.Add(Complaint("Test", id: 1));
             await context.SaveChangesAsync();
 
-            var repo = CreateRepo(context);
-
-            var result = await repo.ExistsAsync(1);
+            var result = await CreateRepo(context).ExistsAsync(1);
 
             Assert.True(result);
         }
 
         // ============================
-        // ✅ GET BY USER
+        // GET BY USER
         // ============================
         [Fact]
         public async Task GetByUserIdAsync_ReturnsFiltered()
         {
             var context = CreateDb();
 
-            context.AnonymousComplaints.Add(new AnonymousComplaint { CreatedBy = 1, Description = "A" });
-            context.AnonymousComplaints.Add(new AnonymousComplaint { CreatedBy = 2, Description = "B" });
-
+            context.AnonymousComplaints.Add(Complaint("A", createdBy: 1));
+            context.AnonymousComplaints.Add(Complaint("B", createdBy: 2));
             await context.SaveChangesAsync();
 
-            var repo = CreateRepo(context);
-
-            var result = await repo.GetByUserIdAsync(1);
+            var result = await CreateRepo(context).GetByUserIdAsync(1);
 
             Assert.Single(result);
         }
 
         // ============================
-        // ✅ GET NON ARCHIVED
+        // GET NON ARCHIVED
         // ============================
         [Fact]
         public async Task GetNonArchivedAsync_ReturnsOnlyNonArchived()
         {
             var context = CreateDb();
 
-            context.AnonymousComplaints.Add(new AnonymousComplaint { Archived = false, Description = "A" });
-            context.AnonymousComplaints.Add(new AnonymousComplaint { Archived = true, Description = "B" });
-
+            context.AnonymousComplaints.Add(Complaint("A", archived: false));
+            context.AnonymousComplaints.Add(Complaint("B", archived: true));
             await context.SaveChangesAsync();
 
-            var repo = CreateRepo(context);
-
-            var result = await repo.GetNonArchivedAsync();
+            var result = await CreateRepo(context).GetNonArchivedAsync();
 
             Assert.Single(result);
         }
 
         // ============================
-        // ✅ DELETE
+        // DELETE
         // ============================
         [Fact]
         public async Task DeleteAsync_RemovesEntity()
         {
             var context = CreateDb();
 
-            context.AnonymousComplaints.Add(new AnonymousComplaint { AnonymousComplaintId = 1, Description = "Test" });
+            context.AnonymousComplaints.Add(Complaint("Test", id: 1));
             await context.SaveChangesAsync();
 
-            var repo = CreateRepo(context);
-
-            await repo.DeleteAsync(1);
+            await CreateRepo(context).DeleteAsync(1);
 
             Assert.Empty(context.AnonymousComplaints);
         }
 
         // ============================
-        // ✅ UPDATE
+        // UPDATE
         // ============================
         [Fact]
         public async Task UpdateAsync_UpdatesEntity()
         {
             var context = CreateDb();
 
-            var complaint = new AnonymousComplaint
-            {
-                AnonymousComplaintId = 1,
-                Description = "Old"
-            };
-
+            var complaint = Complaint("Old", id: 1);
             context.AnonymousComplaints.Add(complaint);
             await context.SaveChangesAsync();
 
-            var repo = CreateRepo(context);
-
             complaint.Description = "Updated";
-
-            await repo.UpdateAsync(complaint);
+            await CreateRepo(context).UpdateAsync(complaint);
 
             var updated = await context.AnonymousComplaints.FindAsync(1);
-
-            Assert.Equal("Updated", updated.Description);
+            Assert.Equal("Updated", updated!.Description);
         }
 
         // ============================
-        // ⚠️ UPDATE STATE
+        // UPDATE STATE
         // ============================
         [Fact]
         public async Task UpdateStateAsync_ChangesState()
         {
             var context = CreateDb();
 
-            context.AnonymousComplaints.Add(new AnonymousComplaint
-            {
-                AnonymousComplaintId = 1,
-                State = "SUBMITTED",
-                Description = "Test"
-            });
-
+            context.AnonymousComplaints.Add(Complaint("Test", id: 1, state: "SUBMITTED"));
             await context.SaveChangesAsync();
 
-            var repo = CreateRepo(context);
-
-            await repo.UpdateStateAsync(1, "RESOLVED");
+            await CreateRepo(context).UpdateStateAsync(1, "RESOLVED");
 
             var updated = await context.AnonymousComplaints.FindAsync(1);
-
-            // ⚠️ peut échouer avec InMemory si ExecuteUpdateAsync
-            Assert.Equal("RESOLVED", updated.State);
+            Assert.Equal("RESOLVED", updated!.State);
         }
 
         // ============================
-        // ⚠️ ARCHIVE
+        // ARCHIVE
         // ============================
         [Fact]
         public async Task ArchiveAsync_SetsArchivedTrue()
         {
             var context = CreateDb();
 
-            context.AnonymousComplaints.Add(new AnonymousComplaint
-            {
-                AnonymousComplaintId = 1,
-                Archived = false,
-                Description = "Test"
-            });
-
+            context.AnonymousComplaints.Add(Complaint("Test", id: 1, archived: false));
             await context.SaveChangesAsync();
 
-            var repo = CreateRepo(context);
-
-            await repo.ArchiveAsync(1);
+            await CreateRepo(context).ArchiveAsync(1);
 
             var entity = await context.AnonymousComplaints.FindAsync(1);
-
-            Assert.True(entity.Archived);
+            Assert.True(entity!.Archived);
         }
 
         // ============================
-        // ⚠️ RESTORE
+        // RESTORE
         // ============================
         [Fact]
         public async Task RestoreAsync_SetsArchivedFalse()
         {
             var context = CreateDb();
 
-            context.AnonymousComplaints.Add(new AnonymousComplaint
-            {
-                AnonymousComplaintId = 1,
-                Archived = true,
-                Description = "Test"
-            });
-
+            context.AnonymousComplaints.Add(Complaint("Test", id: 1, archived: true));
             await context.SaveChangesAsync();
 
-            var repo = CreateRepo(context);
-
-            await repo.RestoreAsync(1);
+            await CreateRepo(context).RestoreAsync(1);
 
             var entity = await context.AnonymousComplaints.FindAsync(1);
-
-            Assert.False(entity.Archived);
+            Assert.False(entity!.Archived);
         }
     }
 }

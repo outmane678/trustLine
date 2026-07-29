@@ -61,13 +61,17 @@ public class TypeService : ITypeService
     public async Task ArchiveTypeWithCategoriesAsync(int id)
     {
         await _typeRepository.ArchiveAsync(id);
-        await _context.Categories.Where(c => c.TypeId == id).ExecuteUpdateAsync(c => c.SetProperty(x => x.Archived, true));
+        var categories = await _context.Categories.Where(c => c.TypeId == id).ToListAsync();
+        foreach (var c in categories) c.Archived = true;
+        await _context.SaveChangesAsync();
     }
 
     public async Task RestoreTypeWithCategoriesAsync(int id)
     {
         await _typeRepository.RestoreAsync(id);
-        await _context.Categories.Where(c => c.TypeId == id).ExecuteUpdateAsync(c => c.SetProperty(x => x.Archived, false));
+        var categories = await _context.Categories.Where(c => c.TypeId == id).ToListAsync();
+        foreach (var c in categories) c.Archived = false;
+        await _context.SaveChangesAsync();
     }
 
     public async Task DeleteTypeAsync(int id) => await _typeRepository.DeleteAsync(id);

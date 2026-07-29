@@ -67,6 +67,11 @@ namespace TrustLine.Tests.Services
 
             fileMock.Setup(f => f.Length).Returns(100);
             fileMock.Setup(f => f.FileName).Returns("test.pdf");
+            fileMock.Setup(f => f.ContentType).Returns("application/pdf");
+
+            // PDF magic bytes: %PDF
+            var pdfHeader = new byte[] { 0x25, 0x50, 0x44, 0x46, 0x2D };
+            fileMock.Setup(f => f.OpenReadStream()).Returns(() => new MemoryStream(pdfHeader));
 
             var service = CreateService();
 

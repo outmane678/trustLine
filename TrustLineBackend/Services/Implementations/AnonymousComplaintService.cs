@@ -83,6 +83,14 @@ public class AnonymousComplaintService : IAnonymousComplaintService
             }
         }
 
+        // Validate required data before starting transaction
+        if (request.TypeID == null)
+            throw new ArgumentException("TypeID is required");
+
+        var typeExists = await _typeRepository.ExistsAsync(request.TypeID.Value);
+        if (!typeExists)
+            throw new ArgumentException($"Type with ID {request.TypeID.Value} does not exist");
+
         // Créer une stratégie d'exécution compatible avec les transactions
         var strategy = _complaintRepository.CreateExecutionStrategy();
 
@@ -92,19 +100,6 @@ public class AnonymousComplaintService : IAnonymousComplaintService
 
             try
             {
-                // Validate required data
-                if (request.TypeID == null)
-                {
-                    throw new ArgumentException("TypeID is required");
-                }
-
-                // Verify TypeID exists
-                var typeExists = await _typeRepository.ExistsAsync(request.TypeID.Value);
-                if (!typeExists)
-                {
-                    throw new ArgumentException($"Type with ID {request.TypeID.Value} does not exist");
-                }
-
                 // Create complaint entity
                 var complaint = new AnonymousComplaint
                 {
@@ -485,19 +480,21 @@ public class AnonymousComplaintService : IAnonymousComplaintService
     {
         try
         {
+            var complaintId = request.AnonymousComplaintID ?? throw new ArgumentException("AnonymousComplaintID is required");
+
             // Get complaint
-            var complaint = await _complaintRepository.GetByIdAsync(request.SolutionID);
+            var complaint = await _complaintRepository.GetByIdAsync(complaintId);
             if (complaint == null)
             {
-                throw new KeyNotFoundException($"Complaint with ID {request.SolutionID} not found");
+                throw new KeyNotFoundException($"Complaint with ID {complaintId} not found");
             }
 
             // Create solution
             var solution = new Solution
             {
                 Content = request.Content,
-                AnonymousComplaintId = request.SolutionID,
-                CreatedBy = 1, // TODO: Get from current user context
+                AnonymousComplaintId = complaintId,
+                CreatedBy = 1,
                 CreatedAt = DateTime.Now,
                 Archived = false
             };
@@ -506,8 +503,8 @@ public class AnonymousComplaintService : IAnonymousComplaintService
             _logger.LogInformation("Solution created with ID: {SolutionId}", createdSolution.SolutionId);
 
             // Update complaint state to RESOLVED
-            await _complaintRepository.UpdateStateAsync(request.SolutionID, "RESOLVED");
-            _logger.LogInformation("Complaint {ComplaintId} marked as RESOLVED", request.SolutionID);
+            await _complaintRepository.UpdateStateAsync(complaintId, "RESOLVED");
+            _logger.LogInformation("Complaint {ComplaintId} marked as RESOLVED", complaintId);
 
             return SolutionMapper.ToResponse(createdSolution,null);
         }

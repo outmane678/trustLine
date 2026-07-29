@@ -2,8 +2,11 @@ using Xunit;
 using Moq;
 using Microsoft.Extensions.Logging;
 using Microsoft.AspNetCore.Http;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 using AnonymousComplaintsAPI.Services.Implementations;
 using AnonymousComplaintsAPI.Repositories.Interfaces;
@@ -14,6 +17,18 @@ using AnonymousComplaintsAPI.Services.Interfaces;
 
 namespace TrustLine.Tests.Services
 {
+    // Allows mocking IAnonymousComplaintRepository.CreateExecutionStrategy() without EF Core infra
+    file sealed class NoOpExecutionStrategy : IExecutionStrategy
+    {
+        public bool RetriesOnFailure => false;
+
+        public TResult Execute<TState, TResult>(TState state, Func<DbContext, TState, TResult> operation, Func<DbContext, TState, ExecutionResult<TResult>>? verifySucceeded)
+            => operation(null!, state);
+
+        public Task<TResult> ExecuteAsync<TState, TResult>(TState state, Func<DbContext, TState, CancellationToken, Task<TResult>> operation, Func<DbContext, TState, CancellationToken, Task<ExecutionResult<TResult>>>? verifySucceeded, CancellationToken cancellationToken = default)
+            => operation(null!, state, cancellationToken);
+    }
+
     public class AnonymousComplaintServiceTests
     {
         private readonly Mock<IAnonymousComplaintRepository> _complaintRepo = new();
@@ -124,25 +139,21 @@ namespace TrustLine.Tests.Services
                 TypeID = 1
             };
 
-            _typeRepo.Setup(x => x.ExistsAsync(1))
-                .ReturnsAsync(true);
+            _typeRepo.Setup(x => x.ExistsAsync(1)).ReturnsAsync(true);
+
+            var txMock = new Mock<IDbContextTransaction>();
+            txMock.Setup(t => t.CommitAsync(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
+            txMock.Setup(t => t.RollbackAsync(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
+            txMock.Setup(t => t.DisposeAsync()).Returns(ValueTask.CompletedTask);
+
+            _complaintRepo.Setup(x => x.CreateExecutionStrategy()).Returns(new NoOpExecutionStrategy());
+            _complaintRepo.Setup(x => x.BeginTransactionAsync()).ReturnsAsync(txMock.Object);
 
             _complaintRepo.Setup(x => x.CreateAsync(It.IsAny<AnonymousComplaint>()))
-                .ReturnsAsync(new AnonymousComplaint
-                {
-                    AnonymousComplaintId = 1,
-                    Description = "test"
-                });
+                .ReturnsAsync(new AnonymousComplaint { AnonymousComplaintId = 1, Description = "test" });
 
             _complaintRepo.Setup(x => x.GetWithDetailsAsync(1))
-                .ReturnsAsync(new AnonymousComplaint
-                {
-                    AnonymousComplaintId = 1,
-                    Description = "test"
-                });
-
-            _fileService.Setup(x => x.SaveFileAsync(It.IsAny<IFormFile>(), It.IsAny<string>()))
-                .ReturnsAsync("fake-path");
+                .ReturnsAsync(new AnonymousComplaint { AnonymousComplaintId = 1, Description = "test" });
 
             var service = CreateService();
 

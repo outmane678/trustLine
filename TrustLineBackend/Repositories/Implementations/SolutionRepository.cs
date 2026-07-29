@@ -76,16 +76,14 @@ namespace AnonymousComplaintsAPI.Repositories.Implementations
 
         public async Task ArchiveAsync(int id)
         {
-            await _context.Solutions
-                .Where(s => s.SolutionId == id)
-                .ExecuteUpdateAsync(s => s.SetProperty(x => x.Archived, true));
+            var entity = await _context.Solutions.FindAsync(id);
+            if (entity != null) { entity.Archived = true; await _context.SaveChangesAsync(); }
         }
 
         public async Task RestoreAsync(int id)
         {
-            await _context.Solutions
-                .Where(s => s.SolutionId == id)
-                .ExecuteUpdateAsync(s => s.SetProperty(x => x.Archived, false));
+            var entity = await _context.Solutions.FindAsync(id);
+            if (entity != null) { entity.Archived = false; await _context.SaveChangesAsync(); }
         }
     }
 }

@@ -138,23 +138,20 @@ namespace AnonymousComplaintsAPI.Repositories.Implementations
 
         public async Task ArchiveAsync(int id)
         {
-            await _context.AnonymousComplaints
-                .Where(c => c.AnonymousComplaintId == id)
-                .ExecuteUpdateAsync(c => c.SetProperty(x => x.Archived, true));
+            var entity = await _context.AnonymousComplaints.FindAsync(id);
+            if (entity != null) { entity.Archived = true; await _context.SaveChangesAsync(); }
         }
 
         public async Task RestoreAsync(int id)
         {
-            await _context.AnonymousComplaints
-                .Where(c => c.AnonymousComplaintId == id)
-                .ExecuteUpdateAsync(c => c.SetProperty(x => x.Archived, false));
+            var entity = await _context.AnonymousComplaints.FindAsync(id);
+            if (entity != null) { entity.Archived = false; await _context.SaveChangesAsync(); }
         }
 
         public async Task UpdateStateAsync(int id, string newState)
         {
-            await _context.AnonymousComplaints
-                .Where(c => c.AnonymousComplaintId == id)
-                .ExecuteUpdateAsync(c => c.SetProperty(x => x.State, newState));
+            var entity = await _context.AnonymousComplaints.FindAsync(id);
+            if (entity != null) { entity.State = newState; await _context.SaveChangesAsync(); }
         }
 
         public async Task<IEnumerable<AnonymousComplaint>> GetMergedComplaintsAsync(int mainComplaintId)
@@ -171,9 +168,11 @@ namespace AnonymousComplaintsAPI.Repositories.Implementations
 
         public async Task UpdateMultipleStatesAsync(List<int> complaintIds, string newState)
         {
-            await _context.AnonymousComplaints
+            var entities = await _context.AnonymousComplaints
                 .Where(c => complaintIds.Contains(c.AnonymousComplaintId))
-                .ExecuteUpdateAsync(c => c.SetProperty(x => x.State, newState));
+                .ToListAsync();
+            foreach (var e in entities) e.State = newState;
+            await _context.SaveChangesAsync();
         }
 
         public async Task<(IEnumerable<AnonymousComplaint> Data, int Total)> GetPaginatedAsync(

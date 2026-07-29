@@ -76,23 +76,24 @@ namespace AnonymousComplaintsAPI.Repositories.Implementations
 
         public async Task ArchiveAsync(int id)
         {
-            await _context.Attachments
-                .Where(a => a.AttachmentId == id)
-                .ExecuteUpdateAsync(a => a.SetProperty(x => x.Archived, true));
+            var entity = await _context.Attachments.FindAsync(id);
+            if (entity != null) { entity.Archived = true; await _context.SaveChangesAsync(); }
         }
 
         public async Task RestoreAsync(int id)
         {
-            await _context.Attachments
-                .Where(a => a.AttachmentId == id)
-                .ExecuteUpdateAsync(a => a.SetProperty(x => x.Archived, false));
+            var entity = await _context.Attachments.FindAsync(id);
+            if (entity != null) { entity.Archived = false; await _context.SaveChangesAsync(); }
         }
 
         public async Task ArchiveBatchAsync(IEnumerable<int> ids)
         {
-            await _context.Attachments
-                .Where(a => ids.Contains(a.AttachmentId))
-                .ExecuteUpdateAsync(a => a.SetProperty(x => x.Archived, true));
+            var idList = ids.ToList();
+            var entities = await _context.Attachments
+                .Where(a => idList.Contains(a.AttachmentId))
+                .ToListAsync();
+            foreach (var e in entities) e.Archived = true;
+            await _context.SaveChangesAsync();
         }
     }
 }

@@ -63,16 +63,14 @@ namespace AnonymousComplaintsAPI.Repositories.Implementations
 
         public async Task ArchiveAsync(int id)
         {
-            await _context.Frequencies
-                .Where(f => f.FrequencyId == id)
-                .ExecuteUpdateAsync(f => f.SetProperty(x => x.Archived, true));
+            var entity = await _context.Frequencies.FindAsync(id);
+            if (entity != null) { entity.Archived = true; await _context.SaveChangesAsync(); }
         }
 
         public async Task RestoreAsync(int id)
         {
-            await _context.Frequencies
-                .Where(f => f.FrequencyId == id)
-                .ExecuteUpdateAsync(f => f.SetProperty(x => x.Archived, false));
+            var entity = await _context.Frequencies.FindAsync(id);
+            if (entity != null) { entity.Archived = false; await _context.SaveChangesAsync(); }
         }
     }
 }
