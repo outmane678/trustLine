@@ -8,6 +8,7 @@ using System.Linq;
 
 using AnonymousComplaintsAPI.Services.Implementations;
 using AnonymousComplaintsAPI.Repositories.Interfaces;
+using AnonymousComplaintsAPI.DTOs.Requests;
 using AnonymousComplaintsAPI.DTOs.Responses;
 using AnonymousComplaintsAPI.Models.Entities;
 
@@ -72,7 +73,7 @@ namespace TrustLine.Tests.Services
         [Fact]
         public async Task CreateSolution_ShouldThrow_WhenComplaintIdMissing()
         {
-            var dto = new SolutionResponse
+            var dto = new SendResponseRequest
             {
                 Content = "test",
                 AnonymousComplaintID = null
@@ -87,7 +88,7 @@ namespace TrustLine.Tests.Services
         [Fact]
         public async Task CreateSolution_ShouldCreate_AndResolveComplaint()
         {
-            var dto = new SolutionResponse
+            var dto = new SendResponseRequest
             {
                 Content = "test",
                 AnonymousComplaintID = 1
@@ -134,7 +135,7 @@ namespace TrustLine.Tests.Services
 
             var service = CreateService();
 
-            var dto = new SolutionResponse
+            var dto = new SendResponseRequest
             {
                 Content = "new"
             };
@@ -152,7 +153,7 @@ namespace TrustLine.Tests.Services
 
             var service = CreateService();
 
-            var dto = new SolutionResponse { Content = "test" };
+            var dto = new SendResponseRequest { Content = "test" };
 
             await Assert.ThrowsAsync<KeyNotFoundException>(() =>
                 service.UpdateSolutionAsync(1, dto));

@@ -73,7 +73,7 @@ namespace TrustLine.Tests.Controllers
         public async Task GetComplaintDetails_ShouldReturnOk()
         {
             _complaintMock.Setup(x => x.GetComplaintDetailsAsync(1))
-                .ReturnsAsync(new AnonymousComplaintResponse { AnonymousComplaintId = 1, Description = "Test" });
+                .ReturnsAsync(new AnonymousComplaintResponse { Id = 1, Description = "Test" });
 
             var result = await CreateController().GetComplaintDetails(1);
 
@@ -98,7 +98,7 @@ namespace TrustLine.Tests.Controllers
         public async Task ChangeState_SubmittedComplaint_ShouldReturnOk()
         {
             _complaintMock.Setup(x => x.GetComplaintAsync(1))
-                .ReturnsAsync(new AnonymousComplaintResponse { AnonymousComplaintId = 1, State = "DÉPOSÉ", Archived = false });
+                .ReturnsAsync(new AnonymousComplaintResponse { Id = 1, State = "DÉPOSÉ", Archived = false });
 
             _complaintMock.Setup(x => x.TransitionComplaintStateAsync(1, "IN PROGRESS"))
                 .Returns(Task.CompletedTask);
@@ -123,7 +123,7 @@ namespace TrustLine.Tests.Controllers
         public async Task ChangeState_ArchivedComplaint_ShouldReturnNotFound()
         {
             _complaintMock.Setup(x => x.GetComplaintAsync(1))
-                .ReturnsAsync(new AnonymousComplaintResponse { AnonymousComplaintId = 1, Archived = true });
+                .ReturnsAsync(new AnonymousComplaintResponse { Id = 1, Archived = true });
 
             var result = await CreateController().ChangeState(1);
 
