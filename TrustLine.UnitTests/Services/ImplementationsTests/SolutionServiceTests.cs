@@ -166,6 +166,7 @@ namespace TrustLine.Tests.Services
         [Fact]
         public async Task ArchiveSolution_ShouldCallRepository()
         {
+            _solutionRepo.Setup(x => x.GetByIdAsync(1)).ReturnsAsync(new Solution { SolutionId = 1 });
             var service = CreateService();
 
             await service.ArchiveSolutionAsync(1);

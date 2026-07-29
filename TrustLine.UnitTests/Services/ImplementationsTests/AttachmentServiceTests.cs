@@ -157,10 +157,9 @@ namespace TrustLine.Tests.Services
 
             var service = CreateService();
 
-            await service.DeleteAttachmentAsync(1);
+            await Assert.ThrowsAsync<KeyNotFoundException>(() => service.DeleteAttachmentAsync(1));
 
             _fileService.Verify(x => x.DeleteFileAsync(It.IsAny<string>()), Times.Never);
-            _attachmentRepo.Verify(x => x.DeleteAsync(1), Times.Once);
         }
 
         // =========================

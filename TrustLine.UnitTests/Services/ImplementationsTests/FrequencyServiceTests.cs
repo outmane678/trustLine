@@ -154,6 +154,7 @@ namespace TrustLine.Tests.Services
         [Fact]
         public async Task Archive_ShouldCallRepository()
         {
+            _repo.Setup(x => x.GetByIdAsync(1)).ReturnsAsync(new Frequency { FrequencyId = 1, Label = "Test" });
             var service = CreateService();
 
             await service.ArchiveFrequencyAsync(1);
@@ -164,6 +165,7 @@ namespace TrustLine.Tests.Services
         [Fact]
         public async Task Restore_ShouldCallRepository()
         {
+            _repo.Setup(x => x.GetByIdAsync(1)).ReturnsAsync(new Frequency { FrequencyId = 1, Label = "Test" });
             var service = CreateService();
 
             await service.RestoreFrequencyAsync(1);
@@ -174,6 +176,7 @@ namespace TrustLine.Tests.Services
         [Fact]
         public async Task Delete_ShouldCallRepository()
         {
+            _repo.Setup(x => x.GetByIdAsync(1)).ReturnsAsync(new Frequency { FrequencyId = 1, Label = "Test" });
             var service = CreateService();
 
             await service.DeleteFrequencyAsync(1);

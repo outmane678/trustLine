@@ -205,6 +205,8 @@ namespace TrustLine.Tests.Services
 
             repo.Setup(x => x.ArchiveAsync(1))
                 .Returns(Task.CompletedTask);
+            repo.Setup(x => x.GetByIdAsync(1))
+                .ReturnsAsync(new AnonymousComplaintsAPI.Models.Entities.Type { TypeId = 1, Name = "Test" });
 
             var service = CreateService(context, repo.Object);
 
@@ -226,6 +228,8 @@ namespace TrustLine.Tests.Services
 
             repo.Setup(x => x.RestoreAsync(1))
                 .Returns(Task.CompletedTask);
+            repo.Setup(x => x.GetByIdAsync(1))
+                .ReturnsAsync(new AnonymousComplaintsAPI.Models.Entities.Type { TypeId = 1, Name = "Test" });
 
             var service = CreateService(context, repo.Object);
 

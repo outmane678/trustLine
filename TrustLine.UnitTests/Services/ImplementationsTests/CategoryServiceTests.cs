@@ -161,6 +161,7 @@ namespace TrustLine.Tests.Services
         [Fact]
         public async Task ArchiveCategory_ShouldCallRepository()
         {
+            _categoryRepo.Setup(x => x.GetByIdAsync(1)).ReturnsAsync(new Category { CategoryId = 1, Name = "Cat" });
             var service = CreateService();
 
             await service.ArchiveCategoryAsync(1);
@@ -171,6 +172,7 @@ namespace TrustLine.Tests.Services
         [Fact]
         public async Task RestoreCategory_ShouldCallRepository()
         {
+            _categoryRepo.Setup(x => x.GetByIdAsync(1)).ReturnsAsync(new Category { CategoryId = 1, Name = "Cat" });
             var service = CreateService();
 
             await service.RestoreCategoryAsync(1);
@@ -181,6 +183,7 @@ namespace TrustLine.Tests.Services
         [Fact]
         public async Task DeleteCategory_ShouldCallRepository()
         {
+            _categoryRepo.Setup(x => x.GetByIdAsync(1)).ReturnsAsync(new Category { CategoryId = 1, Name = "Cat" });
             var service = CreateService();
 
             await service.DeleteCategoryAsync(1);
