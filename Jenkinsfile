@@ -20,26 +20,19 @@ pipeline {
 
         stage('Restore') {
             steps {
-                sh 'dotnet restore Project.sln'
+                bat 'dotnet restore Project.sln'
             }
         }
 
         stage('Build') {
             steps {
-                sh 'dotnet build Project.sln --no-restore --configuration Release'
+                bat 'dotnet build Project.sln --no-restore --configuration Release'
             }
         }
 
         stage('Unit Tests') {
             steps {
-                sh '''
-                    dotnet test TrustLine.UnitTests/TrustLine.Tests.csproj \
-                        --no-build \
-                        --configuration Release \
-                        --logger "trx;LogFileName=unit-tests.trx" \
-                        --collect:"XPlat Code Coverage" \
-                        --results-directory ./TestResults/Unit
-                '''
+                bat 'dotnet test TrustLine.UnitTests/TrustLine.Tests.csproj --no-build --configuration Release --logger "trx;LogFileName=unit-tests.trx" --collect:"XPlat Code Coverage" --results-directory .\\TestResults\\Unit'
             }
             post {
                 always {
@@ -50,14 +43,7 @@ pipeline {
 
         stage('Integration Tests') {
             steps {
-                sh '''
-                    dotnet test TrustLine.IntegrationTests/TrustLine.IntegrationTests.csproj \
-                        --no-build \
-                        --configuration Release \
-                        --logger "trx;LogFileName=integration-tests.trx" \
-                        --collect:"XPlat Code Coverage" \
-                        --results-directory ./TestResults/Integration
-                '''
+                bat 'dotnet test TrustLine.IntegrationTests/TrustLine.IntegrationTests.csproj --no-build --configuration Release --logger "trx;LogFileName=integration-tests.trx" --collect:"XPlat Code Coverage" --results-directory .\\TestResults\\Integration'
             }
             post {
                 always {
