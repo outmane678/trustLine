@@ -1,15 +1,11 @@
 using Xunit;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using Moq;
+using Microsoft.AspNetCore.Mvc;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using System.Linq;
 
 using AnonymousComplaintsAPI.Controllers;
-using AnonymousComplaintsAPI.Data;
-using AnonymousComplaintsAPI.Models.Entities;
-using AnonymousComplaintsAPI.Repositories.Interfaces;
+using AnonymousComplaintsAPI.Services.Interfaces;
 using AnonymousComplaintsAPI.DTOs.Requests;
 using AnonymousComplaintsAPI.DTOs.Responses;
 
@@ -17,212 +13,133 @@ namespace TrustLine.Tests.Controllers
 {
     public class CategoriesControllerTests
     {
-        private AnonymousComplaintsV002Context CreateDb()
-        {
-            var options = new DbContextOptionsBuilder<AnonymousComplaintsV002Context>()
-                .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
-                .Options;
+        private readonly Mock<ICategoryService> _serviceMock = new();
 
-            return new AnonymousComplaintsV002Context(options);
-        }
+        private CategoriesController CreateController() =>
+            new CategoriesController(_serviceMock.Object);
 
-        private CategoriesController CreateController(
-            AnonymousComplaintsV002Context context,
-            Mock<ICategoryRepository> repoMock)
-        {
-            return new CategoriesController(context, repoMock.Object);
-        }
-
-        // =========================
-        // GET ALL
-        // =========================
+        // =====================================================
+        // GET ALL (paginated)
+        // =====================================================
         [Fact]
-        public async Task GetCategories_ShouldReturnList()
+        public async Task GetCategories_ShouldReturnOk()
         {
-            var context = CreateDb();
-
-            var repoMock = new Mock<ICategoryRepository>();
-            repoMock.Setup(x => x.GetAllWithTypeAsync())
-                .ReturnsAsync(new List<Category>
-                {
-                    new Category { CategoryId = 1, Name = "Cat1" }
-                });
-
-            var controller = CreateController(context, repoMock);
-
-            var result = await controller.GetCategories();
-
-            var okResult = Assert.IsType<OkObjectResult>(result.Result);
-            var data = Assert.IsAssignableFrom<IEnumerable<CategoryResponse>>(okResult.Value);
-
-            Assert.Single(data);
-        }
-
-        // =========================
-        // GET BY ID
-        // =========================
-        [Fact]
-        public async Task GetCategory_ShouldReturnCategory()
-        {
-            var context = CreateDb();
-
-            context.Categories.Add(new Category
+            var paginated = new PaginatedResponse<CategoryResponse>
             {
-                CategoryId = 1,
-                Name = "Test"
-            });
-            await context.SaveChangesAsync();
+                Total = 1,
+                Data = new List<CategoryResponse> { new CategoryResponse { Id = 1, Name = "Cat1" } },
+                Page = 1,
+                PerPage = 10
+            };
 
-            var repoMock = new Mock<ICategoryRepository>();
-            var controller = CreateController(context, repoMock);
+            _serviceMock.Setup(x => x.GetCategoriesPaginatedAsync(It.IsAny<PaginationRequest>()))
+                .ReturnsAsync(paginated);
 
-            var result = await controller.GetCategory(1);
+            var result = await CreateController().GetCategories(new PaginationRequest());
 
-            Assert.NotNull(result.Value);
-            Assert.Equal("Test", result.Value.Name);
+            var ok = Assert.IsType<OkObjectResult>(result.Result);
+            Assert.NotNull(ok.Value);
+        }
+
+        // =====================================================
+        // GET BY ID
+        // =====================================================
+        [Fact]
+        public async Task GetCategory_ShouldReturnOk()
+        {
+            _serviceMock.Setup(x => x.GetCategoryAsync(1))
+                .ReturnsAsync(new CategoryResponse { Id = 1, Name = "Cat1" });
+
+            var result = await CreateController().GetCategory(1);
+
+            var ok = Assert.IsType<OkObjectResult>(result.Result);
+            Assert.NotNull(ok.Value);
         }
 
         [Fact]
-        public async Task GetCategory_ShouldReturnNotFound()
+        public async Task GetCategory_NotFound_ShouldReturnNotFound()
         {
-            var context = CreateDb();
-            var repoMock = new Mock<ICategoryRepository>();
-            var controller = CreateController(context, repoMock);
+            _serviceMock.Setup(x => x.GetCategoryAsync(99))
+                .ReturnsAsync((CategoryResponse?)null);
 
-            var result = await controller.GetCategory(99);
+            var result = await CreateController().GetCategory(99);
 
             Assert.IsType<NotFoundResult>(result.Result);
         }
 
-        // =========================
-        // POST
-        // =========================
+        // =====================================================
+        // CREATE
+        // =====================================================
         [Fact]
-        public async Task PostCategory_ShouldCreateCategory()
+        public async Task PostCategory_ShouldReturnCreated()
         {
-            var context = CreateDb();
-            var repoMock = new Mock<ICategoryRepository>();
+            var dto = new CategoryResponse { Name = "NewCat" };
+            var created = new CategoryResponse { Id = 1, Name = "NewCat" };
 
-            var controller = CreateController(context, repoMock);
+            _serviceMock.Setup(x => x.CreateCategoryAsync(dto))
+                .ReturnsAsync(created);
 
-            var dto = new CategoryResponse
-            {
-                Name = "NewCat",
-                CreatedBy = 1,
-                TypeId = 1
-            };
+            var result = await CreateController().PostCategory(dto);
 
-            var result = await controller.PostCategory(dto);
-
-            var created = Assert.IsType<CreatedAtActionResult>(result.Result);
-            var value = Assert.IsType<CategoryResponse>(created.Value);
-
-            Assert.Equal("NewCat", value.Name);
-            Assert.Equal(1, context.Categories.Count());
+            Assert.IsType<CreatedAtActionResult>(result.Result);
         }
 
-        // =========================
-        // PUT
-        // =========================
+        // =====================================================
+        // UPDATE
+        // =====================================================
         [Fact]
-        public async Task PutCategory_ShouldUpdateCategory()
+        public async Task PutCategory_ShouldReturnOk()
         {
-            var context = CreateDb();
+            var dto = new UpdateCategoryRequest { Name = "Updated" };
 
-            context.Categories.Add(new Category
-            {
-                CategoryId = 1,
-                Name = "Old"
-            });
-            await context.SaveChangesAsync();
+            _serviceMock.Setup(x => x.UpdateCategoryAsync(1, dto))
+                .ReturnsAsync(new CategoryResponse { Id = 1, Name = "Updated" });
 
-            var repoMock = new Mock<ICategoryRepository>();
-            var controller = CreateController(context, repoMock);
-
-            var dto = new UpdateCategoryRequest
-            {
-                Name = "Updated"
-            };
-
-            var result = await controller.PutCategory(1, dto);
+            var result = await CreateController().PutCategory(1, dto);
 
             Assert.IsType<OkResult>(result);
-
-            var updated = await context.Categories.FindAsync(1);
-            Assert.Equal("Updated", updated.Name);
         }
 
-        // =========================
-        // DELETE (Soft)
-        // =========================
+        // =====================================================
+        // SOFT DELETE
+        // =====================================================
         [Fact]
         public async Task SoftDeleteCategory_ShouldReturnNoContent()
         {
-            var context = CreateDb();
+            _serviceMock.Setup(x => x.ArchiveCategoryAsync(1))
+                .Returns(Task.CompletedTask);
 
-            var repoMock = new Mock<ICategoryRepository>();
-            repoMock.Setup(x => x.ExistsAsync(1)).ReturnsAsync(true);
-
-            var controller = CreateController(context, repoMock);
-
-            var result = await controller.SoftDeleteCategory(1);
+            var result = await CreateController().SoftDeleteCategory(1);
 
             Assert.IsType<NoContentResult>(result);
-            repoMock.Verify(x => x.ArchiveAsync(1), Times.Once);
         }
 
-        [Fact]
-        public async Task SoftDeleteCategory_ShouldReturnNotFound()
-        {
-            var context = CreateDb();
-
-            var repoMock = new Mock<ICategoryRepository>();
-            repoMock.Setup(x => x.ExistsAsync(1)).ReturnsAsync(false);
-
-            var controller = CreateController(context, repoMock);
-
-            var result = await controller.SoftDeleteCategory(1);
-
-            Assert.IsType<NotFoundResult>(result);
-        }
-
-        // =========================
+        // =====================================================
         // RESTORE
-        // =========================
+        // =====================================================
         [Fact]
         public async Task RestoreCategory_ShouldReturnNoContent()
         {
-            var context = CreateDb();
+            _serviceMock.Setup(x => x.RestoreCategoryAsync(1))
+                .Returns(Task.CompletedTask);
 
-            var repoMock = new Mock<ICategoryRepository>();
-            repoMock.Setup(x => x.ExistsAsync(1)).ReturnsAsync(true);
-
-            var controller = CreateController(context, repoMock);
-
-            var result = await controller.RestoreCategory(1);
+            var result = await CreateController().RestoreCategory(1);
 
             Assert.IsType<NoContentResult>(result);
-            repoMock.Verify(x => x.RestoreAsync(1), Times.Once);
         }
 
-        // =========================
+        // =====================================================
         // HARD DELETE
-        // =========================
+        // =====================================================
         [Fact]
-        public async Task HardDeleteCategory_ShouldDelete()
+        public async Task HardDeleteCategory_ShouldReturnNoContent()
         {
-            var context = CreateDb();
+            _serviceMock.Setup(x => x.DeleteCategoryAsync(1))
+                .Returns(Task.CompletedTask);
 
-            context.Categories.Add(new Category { CategoryId = 1, Name = "ToDelete" });
-            await context.SaveChangesAsync();
-
-            var repoMock = new Mock<ICategoryRepository>();
-            var controller = CreateController(context, repoMock);
-
-            var result = await controller.HardDeleteCategory(1);
+            var result = await CreateController().HardDeleteCategory(1);
 
             Assert.IsType<NoContentResult>(result);
-            Assert.Empty(context.Categories);
         }
     }
 }

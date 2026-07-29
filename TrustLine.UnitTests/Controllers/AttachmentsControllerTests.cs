@@ -1,63 +1,38 @@
 using Xunit;
-using Microsoft.EntityFrameworkCore;
+using Moq;
 using Microsoft.AspNetCore.Mvc;
-using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using System.Linq;
-using System.IO;
-using Microsoft.AspNetCore.Http;
 
 using AnonymousComplaintsAPI.Controllers;
-using AnonymousComplaintsAPI.Data;
-using AnonymousComplaintsAPI.Models.Entities;
+using AnonymousComplaintsAPI.Services.Interfaces;
 using AnonymousComplaintsAPI.DTOs.Responses;
 
 namespace TrustLine.Tests.Controllers
 {
     public class AttachmentsControllerTests
     {
-        // =========================
-        // DB IN MEMORY
-        // =========================
-        private AnonymousComplaintsV002Context CreateDb()
-        {
-            var options = new DbContextOptionsBuilder<AnonymousComplaintsV002Context>()
-                .UseInMemoryDatabase(Guid.NewGuid().ToString())
-                .Options;
+        private readonly Mock<IAttachmentService> _serviceMock = new();
 
-            return new AnonymousComplaintsV002Context(options);
-        }
-
-        private AttachmentsController CreateController(AnonymousComplaintsV002Context context)
-        {
-            return new AttachmentsController(context);
-        }
+        private AttachmentsController CreateController() =>
+            new AttachmentsController(_serviceMock.Object);
 
         // =====================================================
         // GET ALL
         // =====================================================
         [Fact]
-        public async Task GetAttachments_ShouldReturnList()
+        public async Task GetAttachments_ShouldReturnOk()
         {
-            var context = CreateDb();
+            _serviceMock.Setup(x => x.GetAllAttachmentsAsync())
+                .ReturnsAsync(new List<AttachmentResponse>
+                {
+                    new AttachmentResponse { Id = 1, FileName = "file.pdf" }
+                });
 
-            context.Attachments.Add(new Attachment
-            {
-                AttachmentId = 1,
-                FileName = "file.pdf",
-                FilePath = "/uploads/file.pdf",
-                Archived = false
-            });
+            var result = await CreateController().GetAttachments();
 
-            await context.SaveChangesAsync();
-
-            var controller = CreateController(context);
-
-            var result = await controller.GetAttachments();
-
-            var list = Assert.IsType<List<AttachmentResponse>>(result.Value);
-
+            var ok = Assert.IsType<OkObjectResult>(result.Result);
+            var list = Assert.IsAssignableFrom<IEnumerable<AttachmentResponse>>(ok.Value);
             Assert.Single(list);
         }
 
@@ -65,35 +40,24 @@ namespace TrustLine.Tests.Controllers
         // GET BY ID
         // =====================================================
         [Fact]
-        public async Task GetAttachment_ShouldReturnAttachment()
+        public async Task GetAttachment_ShouldReturnOk()
         {
-            var context = CreateDb();
+            _serviceMock.Setup(x => x.GetAttachmentAsync(1))
+                .ReturnsAsync(new AttachmentResponse { Id = 1, FileName = "file.pdf" });
 
-            context.Attachments.Add(new Attachment
-            {
-                AttachmentId = 1,
-                FileName = "file.pdf",
-                FilePath = "/uploads/file.pdf",
-                Archived = false
-            });
+            var result = await CreateController().GetAttachment(1);
 
-            await context.SaveChangesAsync();
-
-            var controller = CreateController(context);
-
-            var result = await controller.GetAttachment(1);
-
-            Assert.NotNull(result.Value);
-            Assert.Equal("file.pdf", result.Value.FileName);
+            var ok = Assert.IsType<OkObjectResult>(result.Result);
+            Assert.NotNull(ok.Value);
         }
 
         [Fact]
-        public async Task GetAttachment_ShouldReturnNotFound()
+        public async Task GetAttachment_NotFound_ShouldReturnNotFound()
         {
-            var context = CreateDb();
-            var controller = CreateController(context);
+            _serviceMock.Setup(x => x.GetAttachmentAsync(999))
+                .ReturnsAsync((AttachmentResponse?)null);
 
-            var result = await controller.GetAttachment(999);
+            var result = await CreateController().GetAttachment(999);
 
             Assert.IsType<NotFoundResult>(result.Result);
         }
@@ -102,175 +66,85 @@ namespace TrustLine.Tests.Controllers
         // CREATE
         // =====================================================
         [Fact]
-        public async Task PostAttachment_ShouldCreate()
+        public async Task PostAttachment_ShouldReturnCreated()
         {
-            var context = CreateDb();
-            var controller = CreateController(context);
+            var dto = new AttachmentResponse { FileName = "file.pdf", FilePath = "path", FileType = "pdf" };
+            var created = new AttachmentResponse { Id = 1, FileName = "file.pdf" };
 
-            var dto = new AttachmentResponse
-            {
-                FileName = "file.pdf",
-                FilePath = "path",
-                FileType = "application/pdf"
-            };
+            _serviceMock.Setup(x => x.CreateAttachmentAsync(dto))
+                .ReturnsAsync(created);
 
-            var result = await controller.PostAttachment(dto);
+            var result = await CreateController().PostAttachment(dto);
 
-            var created = Assert.IsType<CreatedAtActionResult>(result.Result);
-
-            Assert.Equal(1, context.Attachments.Count());
+            Assert.IsType<CreatedAtActionResult>(result.Result);
         }
 
         // =====================================================
         // UPDATE
         // =====================================================
         [Fact]
-        public async Task PutAttachment_ShouldUpdate()
+        public async Task PutAttachment_ShouldReturnNoContent()
         {
-            var context = CreateDb();
+            var dto = new AttachmentResponse { Id = 1, FileName = "new.pdf" };
 
-            context.Attachments.Add(new Attachment
-            {
-                AttachmentId = 1,
-                FileName = "old.pdf",
-                FilePath = "/uploads/old.pdf",
-                Archived = false
-            });
+            _serviceMock.Setup(x => x.UpdateAttachmentAsync(1, dto))
+                .ReturnsAsync(new AttachmentResponse { Id = 1, FileName = "new.pdf" });
 
-            await context.SaveChangesAsync();
-
-            var controller = CreateController(context);
-
-            var dto = new AttachmentResponse
-            {
-                Id = 1,
-                FileName = "new.pdf"
-            };
-
-            var result = await controller.PutAttachment(1, dto);
+            var result = await CreateController().PutAttachment(1, dto);
 
             Assert.IsType<NoContentResult>(result);
+        }
 
-            var updated = await context.Attachments.FindAsync(1);
-            Assert.Equal("new.pdf", updated!.FileName);
+        [Fact]
+        public async Task PutAttachment_IdMismatch_ShouldReturnBadRequest()
+        {
+            var dto = new AttachmentResponse { Id = 2 };
+
+            var result = await CreateController().PutAttachment(1, dto);
+
+            Assert.IsType<BadRequestResult>(result);
         }
 
         // =====================================================
-        // DELETE (SOFT)
+        // SOFT DELETE
         // =====================================================
         [Fact]
-        public async Task SoftDelete_ShouldArchive()
+        public async Task SoftDeleteAttachment_ShouldReturnNoContent()
         {
-            var context = CreateDb();
+            _serviceMock.Setup(x => x.ArchiveAttachmentAsync(1))
+                .Returns(Task.CompletedTask);
 
-            context.Attachments.Add(new Attachment
-            {
-                AttachmentId = 1,
-                FilePath = "/uploads/test",
-                Archived = false
-            });
-
-            await context.SaveChangesAsync();
-
-            var controller = CreateController(context);
-
-            var result = await controller.SoftDeleteAttachment(1);
+            var result = await CreateController().SoftDeleteAttachment(1);
 
             Assert.IsType<NoContentResult>(result);
-
-            var entity = await context.Attachments.FindAsync(1);
-            Assert.True(entity!.Archived);
         }
 
         // =====================================================
         // RESTORE
         // =====================================================
         [Fact]
-        public async Task Restore_ShouldUnarchive()
+        public async Task RestoreAttachment_ShouldReturnNoContent()
         {
-            var context = CreateDb();
+            _serviceMock.Setup(x => x.RestoreAttachmentAsync(1))
+                .Returns(Task.CompletedTask);
 
-            context.Attachments.Add(new Attachment
-            {
-                AttachmentId = 1,
-                FilePath = "/uploads/test",
-                Archived = true
-            });
-
-            await context.SaveChangesAsync();
-
-            var controller = CreateController(context);
-
-            var result = await controller.RestoreAttachment(1);
+            var result = await CreateController().RestoreAttachment(1);
 
             Assert.IsType<NoContentResult>(result);
-
-            var entity = await context.Attachments.FindAsync(1);
-            Assert.False(entity!.Archived);
         }
 
         // =====================================================
         // HARD DELETE
         // =====================================================
         [Fact]
-        public async Task HardDelete_ShouldRemove()
+        public async Task HardDeleteAttachment_ShouldReturnNoContent()
         {
-            var context = CreateDb();
+            _serviceMock.Setup(x => x.DeleteAttachmentAsync(1))
+                .Returns(Task.CompletedTask);
 
-            context.Attachments.Add(new Attachment
-            {
-                AttachmentId = 1,
-                FilePath = "/uploads/test"
-            });
-
-            await context.SaveChangesAsync();
-
-            var controller = CreateController(context);
-
-            var result = await controller.HardDeleteAttachment(1);
+            var result = await CreateController().HardDeleteAttachment(1);
 
             Assert.IsType<NoContentResult>(result);
-            Assert.Empty(context.Attachments);
-        }
-
-        // =====================================================
-        // UPLOAD
-        // =====================================================
-        [Fact]
-        public async Task UploadAttachment_ShouldCreateFile()
-        {
-            var context = CreateDb();
-            var controller = CreateController(context);
-
-            var fileName = "test.txt";
-            var content = "Hello World";
-            var stream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(content));
-
-            IFormFile file = new FormFile(stream, 0, stream.Length, "file", fileName)
-            {
-                Headers = new HeaderDictionary(),
-                ContentType = "text/plain"
-            };
-
-            var result = await controller.UploadAttachment(file);
-
-            var created = Assert.IsType<CreatedAtActionResult>(result.Result);
-
-            Assert.Equal(1, context.Attachments.Count());
-        }
-
-        // =====================================================
-        // DOWNLOAD ZIP
-        // =====================================================
-        [Fact]
-        public async Task DownloadAllFiles_ShouldReturnNotFound()
-        {
-            var context = CreateDb();
-            var controller = CreateController(context);
-
-            var result = await controller.DownloadAllFiles(1);
-
-            Assert.IsType<NotFoundObjectResult>(result);
         }
     }
 }

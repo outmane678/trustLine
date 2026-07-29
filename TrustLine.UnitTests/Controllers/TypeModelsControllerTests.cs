@@ -1,13 +1,13 @@
 using Xunit;
-using Microsoft.EntityFrameworkCore;
-using System;
-using System.Linq;
-using System.Threading.Tasks;
+using Moq;
 using Microsoft.AspNetCore.Mvc;
 using System.Collections.Generic;
+using System.Threading.Tasks;
+using System;
+
 using AnonymousComplaintsAPI.Controllers;
-using AnonymousComplaintsAPI.Data;
-using AnonymousComplaintsAPI.Models.Entities;
+using AnonymousComplaintsAPI.Services.Interfaces;
+using AnonymousComplaintsAPI.DTOs.Requests;
 using AnonymousComplaintsAPI.DTOs.Responses;
 
 using TypeEntity = AnonymousComplaintsAPI.Models.Entities.Type;
@@ -16,209 +16,149 @@ namespace TrustLine.Tests.Controllers
 {
     public class TypeModelsControllerTests
     {
-        private AnonymousComplaintsV002Context CreateDb()
-        {
-            var options = new DbContextOptionsBuilder<AnonymousComplaintsV002Context>()
-                .UseInMemoryDatabase(Guid.NewGuid().ToString())
-                .Options;
+        private readonly Mock<ITypeService> _serviceMock = new();
 
-            return new AnonymousComplaintsV002Context(options);
-        }
+        private TypeModelsController CreateController() =>
+            new TypeModelsController(_serviceMock.Object);
 
-        private TypeModelsController CreateController(AnonymousComplaintsV002Context context)
-        {
-            return new TypeModelsController(context);
-        }
-
-        // ============================
-        // ✅ GET ALL TYPES
-        // ============================
+        // =====================================================
+        // GET ALL (paginated)
+        // =====================================================
         [Fact]
-        public async Task GetTypes_ReturnsNonArchivedTypes()
+        public async Task GetTypes_ShouldReturnOk()
         {
-            var context = CreateDb();
-
-            context.Types.Add(new TypeEntity { TypeId = 1, Name = "Type1", Archived = false });
-            context.Types.Add(new TypeEntity { TypeId = 2, Name = "Type2", Archived = true });
-            await context.SaveChangesAsync();
-
-            var controller = CreateController(context);
-
-            var result = await controller.GetTypes();
-
-            var types = result.Value;
-
-            Assert.Single(types); // seulement non archivé
-            Assert.Equal("Type1", types.First().Name);
-        }
-
-        // ============================
-        // ✅ GET TYPE BY ID
-        // ============================
-        [Fact]
-        public async Task GetTypeModel_ExistingId_ReturnsType()
-        {
-            var context = CreateDb();
-
-            context.Types.Add(new TypeEntity { TypeId = 1, Name = "Type1" });
-            await context.SaveChangesAsync();
-
-            var controller = CreateController(context);
-
-            var result = await controller.GetTypeModel(1);
-
-            Assert.NotNull(result.Value);
-            Assert.Equal("Type1", result.Value.Name);
-        }
-
-        [Fact]
-        public async Task GetTypeModel_NotFound_Returns404()
-        {
-            var context = CreateDb();
-            var controller = CreateController(context);
-
-            var result = await controller.GetTypeModel(99);
-
-            Assert.IsType<NotFoundResult>(result.Result);
-        }
-
-        // ============================
-        // ✅ CREATE TYPE
-        // ============================
-        [Fact]
-        public async Task PostTypeModel_CreatesType()
-        {
-            var context = CreateDb();
-            var controller = CreateController(context);
-
-            var dto = new TypeModelResponse
+            var paginated = new PaginatedResponse<TypeModelResponse>
             {
-                Name = "NewType",
-                CreatedBy = 1,
-                CreatedAt = DateTime.Now
+                Total = 1,
+                Data = new List<TypeModelResponse>
+                {
+                    new TypeModelResponse { TypeId = 1, Name = "Type1" }
+                },
+                Page = 1,
+                PerPage = 10
             };
 
-            var result = await controller.PostTypeModel(dto);
+            _serviceMock.Setup(x => x.GetTypesPaginatedAsync(It.IsAny<PaginationRequest>()))
+                .ReturnsAsync(paginated);
 
-            var created = Assert.IsType<CreatedAtActionResult>(result.Result);
-            var returnedDto = Assert.IsType<TypeModelResponse>(created.Value);
+            var result = await CreateController().GetTypes(new PaginationRequest());
 
-            Assert.Equal("NewType", returnedDto.Name);
-            Assert.Equal(1, context.Types.Count());
+            var ok = Assert.IsType<OkObjectResult>(result.Result);
+            Assert.NotNull(ok.Value);
         }
 
-        // ============================
-        // ✅ UPDATE TYPE
-        // ============================
+        // =====================================================
+        // GET BY ID
+        // =====================================================
         [Fact]
-        public async Task UpdateTypeModel_UpdatesType()
+        public async Task GetTypeModel_ShouldReturnOk()
         {
-            var context = CreateDb();
+            _serviceMock.Setup(x => x.GetTypeAsync(1, It.IsAny<bool>()))
+                .ReturnsAsync(new TypeModelResponse { TypeId = 1, Name = "Type1" });
 
-            context.Types.Add(new TypeEntity { TypeId = 1, Name = "Old" });
-            await context.SaveChangesAsync();
+            var result = await CreateController().GetTypeModel(1);
 
-            var controller = CreateController(context);
-
-            var dto = new TypeModelResponse { Name = "Updated" };
-
-            var result = await controller.UpdateTypeModel(1, dto);
-
-            Assert.IsType<OkResult>(result.Result);
-
-            var updated = await context.Types.FindAsync(1);
-            Assert.Equal("Updated", updated.Name);
+            var ok = Assert.IsType<OkObjectResult>(result.Result);
+            Assert.NotNull(ok.Value);
         }
 
-        // ============================
-        // ❌ UPDATE NOT FOUND
-        // ============================
         [Fact]
-        public async Task UpdateTypeModel_NotFound_Returns404()
+        public async Task GetTypeModel_NotFound_ShouldReturnNotFound()
         {
-            var context = CreateDb();
-            var controller = CreateController(context);
+            _serviceMock.Setup(x => x.GetTypeAsync(99, It.IsAny<bool>()))
+                .ReturnsAsync((TypeModelResponse?)null);
 
-            var dto = new TypeModelResponse { Name = "Updated" };
-
-            var result = await controller.UpdateTypeModel(1, dto);
+            var result = await CreateController().GetTypeModel(99);
 
             Assert.IsType<NotFoundResult>(result.Result);
         }
 
-        // ============================
-        // ✅ ARCHIVE TYPE
-        // ============================
+        // =====================================================
+        // CREATE
+        // =====================================================
         [Fact]
-        public async Task ArchiveTypeModel_ArchivesTypeAndCategories()
+        public async Task PostTypeModel_ShouldReturnCreated()
         {
-            var context = CreateDb();
+            var dto = new TypeModelResponse { Name = "NewType" };
+            var created = new TypeModelResponse { TypeId = 1, Name = "NewType" };
 
-            context.Types.Add(new TypeEntity { TypeId = 1, Name = "Type1", Archived = false });
-            context.Categories.Add(new Category { CategoryId = 1, TypeId = 1, Name = "Cat1", Archived = false });
+            _serviceMock.Setup(x => x.CreateTypeAsync(dto))
+                .ReturnsAsync(created);
 
-            await context.SaveChangesAsync();
+            var result = await CreateController().PostTypeModel(dto);
 
-            var controller = CreateController(context);
-
-            var result = await controller.ArchiveTypeModel(1);
-
-            Assert.IsType<NoContentResult>(result);
-
-            var type = await context.Types.FindAsync(1);
-            var category = await context.Categories.FirstAsync();
-
-            Assert.True(type.Archived);
-            Assert.True(category.Archived);
+            Assert.IsType<CreatedAtActionResult>(result.Result);
         }
 
-        // ============================
-        // ✅ RESTORE TYPE
-        // ============================
+        // =====================================================
+        // UPDATE
+        // =====================================================
         [Fact]
-        public async Task RestoreTypeModel_RestoresTypeAndCategories()
+        public async Task UpdateTypeModel_ShouldReturnOk()
         {
-            var context = CreateDb();
+            var dto = new TypeModelResponse { Name = "Updated" };
 
-            context.Types.Add(new TypeEntity { TypeId = 1, Name = "Type1", Archived = true });
-            context.Categories.Add(new Category { CategoryId = 1, TypeId = 1, Name = "Cat1", Archived = true });
+            _serviceMock.Setup(x => x.UpdateTypeAsync(1, dto))
+                .ReturnsAsync(new TypeModelResponse { TypeId = 1, Name = "Updated" });
 
-            await context.SaveChangesAsync();
+            var result = await CreateController().UpdateTypeModel(1, dto);
 
-            var controller = CreateController(context);
-
-            var result = await controller.RestoreTypeModel(1);
-
-            Assert.IsType<NoContentResult>(result);
-
-            var type = await context.Types.FindAsync(1);
-            var category = await context.Categories.FirstAsync();
-
-            Assert.False(type.Archived);
-            Assert.False(category.Archived);
+            Assert.IsType<OkResult>(result.Result);
         }
 
-        // ============================
-        // ✅ DELETE TYPE (soft delete)
-        // ============================
         [Fact]
-        public async Task DeleteTypeModel_SetsArchivedTrue()
+        public async Task UpdateTypeModel_NotFound_ShouldReturnNotFound()
         {
-            var context = CreateDb();
+            var dto = new TypeModelResponse { Name = "Updated" };
 
-            context.Types.Add(new TypeEntity { TypeId = 1, Name = "Type1", Archived = false });
-            context.Categories.Add(new Category { CategoryId = 1, TypeId = 1, Name = "Cat1", Archived = false });
+            _serviceMock.Setup(x => x.UpdateTypeAsync(99, dto))
+                .ReturnsAsync((TypeModelResponse?)null);
 
-            await context.SaveChangesAsync();
+            var result = await CreateController().UpdateTypeModel(99, dto);
 
-            var controller = CreateController(context);
+            Assert.IsType<NotFoundResult>(result.Result);
+        }
 
-            var result = await controller.DeleteTypeModel(1);
+        // =====================================================
+        // ARCHIVE
+        // =====================================================
+        [Fact]
+        public async Task ArchiveTypeModel_ShouldReturnNoContent()
+        {
+            _serviceMock.Setup(x => x.ArchiveTypeWithCategoriesAsync(1))
+                .Returns(Task.CompletedTask);
+
+            var result = await CreateController().ArchiveTypeModel(1);
 
             Assert.IsType<NoContentResult>(result);
+        }
 
-            var type = await context.Types.FindAsync(1);
-            Assert.True(type.Archived);
+        // =====================================================
+        // RESTORE
+        // =====================================================
+        [Fact]
+        public async Task RestoreTypeModel_ShouldReturnNoContent()
+        {
+            _serviceMock.Setup(x => x.RestoreTypeWithCategoriesAsync(1))
+                .Returns(Task.CompletedTask);
+
+            var result = await CreateController().RestoreTypeModel(1);
+
+            Assert.IsType<NoContentResult>(result);
+        }
+
+        // =====================================================
+        // DELETE
+        // =====================================================
+        [Fact]
+        public async Task DeleteTypeModel_ShouldReturnNoContent()
+        {
+            _serviceMock.Setup(x => x.ArchiveTypeWithCategoriesAsync(1))
+                .Returns(Task.CompletedTask);
+
+            var result = await CreateController().DeleteTypeModel(1);
+
+            Assert.IsType<NoContentResult>(result);
         }
     }
 }

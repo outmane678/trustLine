@@ -23,6 +23,8 @@ namespace TrustLine.Tests.Services
         private readonly Mock<ISolutionRepository> _solutionRepo = new();
         private readonly Mock<IFileService> _fileService = new();
         private readonly Mock<ILogger<AnonymousComplaintService>> _logger = new();
+        private readonly Mock<AnonymousComplaintsAPI.Services.EnsureServices.IEnsureService> _ensureService = new();
+        private readonly Mock<IHrLinkService> _hrLinkService = new();
 
         private AnonymousComplaintService CreateService()
         {
@@ -33,7 +35,9 @@ namespace TrustLine.Tests.Services
                 _attachmentRepo.Object,
                 _solutionRepo.Object,
                 _fileService.Object,
-                _logger.Object
+                _logger.Object,
+                _ensureService.Object,
+                _hrLinkService.Object
             );
         }
 
@@ -201,8 +205,8 @@ namespace TrustLine.Tests.Services
         {
             var request = new SendResponseRequest
             {
-                id = 1,
-                comment = "solution"
+                AnonymousComplaintID = 1,
+                Content = "solution"
             };
 
             _complaintRepo.Setup(x => x.GetByIdAsync(1))

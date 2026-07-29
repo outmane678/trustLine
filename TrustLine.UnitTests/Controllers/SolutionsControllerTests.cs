@@ -1,280 +1,174 @@
 using Xunit;
+using Moq;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using System;
-using System.Linq;
-using System.Threading.Tasks;
 using System.Collections.Generic;
+using System.Threading.Tasks;
+using System;
 
 using AnonymousComplaintsAPI.Controllers;
-using AnonymousComplaintsAPI.Data;
-using AnonymousComplaintsAPI.Models.Entities;
+using AnonymousComplaintsAPI.Services.Interfaces;
+using AnonymousComplaintsAPI.DTOs.Requests;
 using AnonymousComplaintsAPI.DTOs.Responses;
 
 namespace TrustLine.Tests.Controllers
 {
     public class SolutionsControllerTests
     {
-        private AnonymousComplaintsV002Context CreateDb()
-        {
-            var options = new DbContextOptionsBuilder<AnonymousComplaintsV002Context>()
-                .UseInMemoryDatabase(Guid.NewGuid().ToString())
-                .Options;
+        private readonly Mock<ISolutionService> _serviceMock = new();
 
-            return new AnonymousComplaintsV002Context(options);
-        }
+        private SolutionsController CreateController() =>
+            new SolutionsController(_serviceMock.Object);
 
-        private SolutionsController CreateController(AnonymousComplaintsV002Context context)
-        {
-            return new SolutionsController(context);
-        }
-
-        // =========================
+        // =====================================================
         // GET ALL (non archived)
-        // =========================
+        // =====================================================
         [Fact]
         public async Task GetSolutions_ShouldReturnOnlyNonArchived()
         {
-            var context = CreateDb();
+            _serviceMock.Setup(x => x.GetAllSolutionsAsync())
+                .ReturnsAsync(new List<SolutionResponse>
+                {
+                    new SolutionResponse { SolutionID = 1, Content = "A", Archived = false }
+                });
 
-            context.Solutions.Add(new Solution { SolutionId = 1, Content = "A", Archived = false });
-            context.Solutions.Add(new Solution { SolutionId = 2, Content = "B", Archived = true });
-            await context.SaveChangesAsync();
+            var result = await CreateController().GetSolutions();
 
-            var controller = CreateController(context);
-
-            var result = await controller.GetSolutions();
-
-            var list = result.Value.ToList();
-            Assert.Single(list);
+            var ok = Assert.IsType<OkObjectResult>(result.Result);
+            Assert.NotNull(ok.Value);
         }
 
-        // =========================
+        // =====================================================
         // GET ALL (including archived)
-        // =========================
+        // =====================================================
         [Fact]
         public async Task GetAllSolutions_ShouldReturnAll()
         {
-            var context = CreateDb();
+            _serviceMock.Setup(x => x.GetAllSolutionsIncludingArchivedAsync())
+                .ReturnsAsync(new List<SolutionResponse>
+                {
+                    new SolutionResponse { SolutionID = 1, Content = "A" },
+                    new SolutionResponse { SolutionID = 2, Content = "B" }
+                });
 
-            context.Solutions.Add(new Solution { SolutionId = 1, Content = "A" });
-            context.Solutions.Add(new Solution { SolutionId = 2, Content = "B" });
-            await context.SaveChangesAsync();
+            var result = await CreateController().GetAllSolutions();
 
-            var controller = CreateController(context);
-
-            var result = await controller.GetAllSolutions();
-
-            Assert.Equal(2, result.Value.Count());
+            var ok = Assert.IsType<OkObjectResult>(result.Result);
+            Assert.NotNull(ok.Value);
         }
 
-        // =========================
+        // =====================================================
         // GET BY ID
-        // =========================
+        // =====================================================
         [Fact]
-        public async Task GetSolution_ShouldReturnSolution()
+        public async Task GetSolution_ShouldReturnOk()
         {
-            var context = CreateDb();
+            _serviceMock.Setup(x => x.GetSolutionAsync(1))
+                .ReturnsAsync(new SolutionResponse { SolutionID = 1, Content = "Test" });
 
-            context.Solutions.Add(new Solution { SolutionId = 1, Content = "Test" });
-            await context.SaveChangesAsync();
+            var result = await CreateController().GetSolution(1);
 
-            var controller = CreateController(context);
-
-            var result = await controller.GetSolution(1);
-
-            Assert.NotNull(result.Value);
-            Assert.Equal("Test", result.Value.Content);
+            var ok = Assert.IsType<OkObjectResult>(result.Result);
+            Assert.NotNull(ok.Value);
         }
 
         [Fact]
-        public async Task GetSolution_ShouldReturnNotFound()
+        public async Task GetSolution_NotFound_ShouldReturnNotFound()
         {
-            var context = CreateDb();
-            var controller = CreateController(context);
+            _serviceMock.Setup(x => x.GetSolutionAsync(99))
+                .ReturnsAsync((SolutionResponse?)null);
 
-            var result = await controller.GetSolution(99);
+            var result = await CreateController().GetSolution(99);
 
             Assert.IsType<NotFoundResult>(result.Result);
         }
 
-        // =========================
-        // POST (🔥 IMPORTANT)
-        // =========================
+        // =====================================================
+        // POST
+        // =====================================================
         [Fact]
-        public async Task PostSolution_ShouldCreateSolution_AndUpdateComplaintState()
+        public async Task PostSolution_ShouldReturnCreated()
         {
-            var context = CreateDb();
-
-            context.AnonymousComplaints.Add(new AnonymousComplaint
-            {
-                AnonymousComplaintId = 1,
-                State = "SUBMITTED",
-                Description = "Test"
-            });
-
-            await context.SaveChangesAsync();
-
-            var controller = CreateController(context);
-
-            var dto = new SolutionResponse
+            var dto = new SendResponseRequest
             {
                 Content = "Fix",
                 AnonymousComplaintID = 1,
-                CreatedBy = 1,
                 CreatedAt = DateTime.Now
             };
 
-            var result = await controller.PostSolution(dto);
+            _serviceMock.Setup(x => x.CreateSolutionForComplaintAndMergedAsync(dto))
+                .ReturnsAsync(new SolutionResponse { SolutionID = 1, Content = "Fix" });
 
-            var created = Assert.IsType<CreatedAtActionResult>(result.Result);
+            var result = await CreateController().PostSolution(dto);
 
-            // Vérifier solution créée
-            Assert.Single(context.Solutions);
-
-            // Vérifier état changé
-            var complaint = await context.AnonymousComplaints.FindAsync(1);
-            Assert.Equal("RESOLVED", complaint.State);
+            Assert.IsType<CreatedAtActionResult>(result.Result);
         }
 
-        // =========================
-        // POST WITH MERGED
-        // =========================
-        [Fact]
-        public async Task PostSolution_ShouldCreateSolutions_ForMergedComplaints()
-        {
-            var context = CreateDb();
-
-            // plainte principale
-            context.AnonymousComplaints.Add(new AnonymousComplaint
-            {
-                AnonymousComplaintId = 1,
-                State = "SUBMITTED",
-                Description = "Main"
-            });
-
-            // plainte fusionnée
-            context.AnonymousComplaints.Add(new AnonymousComplaint
-            {
-                AnonymousComplaintId = 2,
-                FusionWithId = 1,
-                State = "SUBMITTED",
-                Description = "Merged"
-            });
-
-            await context.SaveChangesAsync();
-
-            var controller = CreateController(context);
-
-            var dto = new SolutionResponse
-            {
-                Content = "Fix",
-                AnonymousComplaintID = 1,
-                CreatedBy = 1,
-                CreatedAt = DateTime.Now
-            };
-
-            await controller.PostSolution(dto);
-
-            // 2 solutions doivent être créées
-            Assert.Equal(2, context.Solutions.Count());
-
-            // états mis à jour
-            var complaints = context.AnonymousComplaints.ToList();
-            Assert.All(complaints, c => Assert.Equal("RESOLVED", c.State));
-        }
-
-        // =========================
+        // =====================================================
         // PUT
-        // =========================
+        // =====================================================
         [Fact]
-        public async Task PutSolution_ShouldUpdate()
+        public async Task PutSolution_ShouldReturnNoContent()
         {
-            var context = CreateDb();
+            var dto = new SendResponseRequest { SolutionID = 1, Content = "Updated" };
 
-            context.Solutions.Add(new Solution
-            {
-                SolutionId = 1,
-                Content = "Old"
-            });
+            _serviceMock.Setup(x => x.UpdateSolutionAsync(1, dto))
+                .ReturnsAsync(new SolutionResponse { SolutionID = 1, Content = "Updated" });
 
-            await context.SaveChangesAsync();
-
-            var controller = CreateController(context);
-
-            var dto = new SolutionResponse
-            {
-                SolutionID = 1,
-                Content = "Updated"
-            };
-
-            var result = await controller.PutSolution(1, dto);
+            var result = await CreateController().PutSolution(1, dto);
 
             Assert.IsType<NoContentResult>(result);
-
-            var updated = await context.Solutions.FindAsync(1);
-            Assert.Equal("Updated", updated.Content);
         }
 
-        // =========================
+        [Fact]
+        public async Task PutSolution_IdMismatch_ShouldReturnBadRequest()
+        {
+            var dto = new SendResponseRequest { SolutionID = 2 };
+
+            var result = await CreateController().PutSolution(1, dto);
+
+            Assert.IsType<BadRequestResult>(result);
+        }
+
+        // =====================================================
         // ARCHIVE
-        // =========================
+        // =====================================================
         [Fact]
-        public async Task ArchiveSolution_ShouldArchive()
+        public async Task ArchiveSolution_ShouldReturnNoContent()
         {
-            var context = CreateDb();
+            _serviceMock.Setup(x => x.ArchiveSolutionAsync(1))
+                .Returns(Task.CompletedTask);
 
-            context.Solutions.Add(new Solution { SolutionId = 1, Content = "A", Archived = false });
-            await context.SaveChangesAsync();
-
-            var controller = CreateController(context);
-
-            var result = await controller.ArchiveSolution(1);
+            var result = await CreateController().ArchiveSolution(1);
 
             Assert.IsType<NoContentResult>(result);
-
-            var solution = await context.Solutions.FindAsync(1);
-            Assert.True(solution.Archived);
         }
 
-        // =========================
+        // =====================================================
         // RESTORE
-        // =========================
+        // =====================================================
         [Fact]
-        public async Task RestoreSolution_ShouldRestore()
+        public async Task RestoreSolution_ShouldReturnNoContent()
         {
-            var context = CreateDb();
+            _serviceMock.Setup(x => x.RestoreSolutionAsync(1))
+                .Returns(Task.CompletedTask);
 
-            context.Solutions.Add(new Solution { SolutionId = 1, Content = "A", Archived = true });
-            await context.SaveChangesAsync();
-
-            var controller = CreateController(context);
-
-            var result = await controller.RestoreSolution(1);
+            var result = await CreateController().RestoreSolution(1);
 
             Assert.IsType<NoContentResult>(result);
-
-            var solution = await context.Solutions.FindAsync(1);
-            Assert.False(solution.Archived);
         }
 
-        // =========================
+        // =====================================================
         // DELETE
-        // =========================
+        // =====================================================
         [Fact]
-        public async Task DeleteSolution_ShouldDelete()
+        public async Task DeleteSolution_ShouldReturnNoContent()
         {
-            var context = CreateDb();
+            _serviceMock.Setup(x => x.DeleteSolutionAsync(1))
+                .Returns(Task.CompletedTask);
 
-            context.Solutions.Add(new Solution { SolutionId = 1, Content = "A" });
-            await context.SaveChangesAsync();
-
-            var controller = CreateController(context);
-
-            var result = await controller.DeleteSolution(1);
+            var result = await CreateController().DeleteSolution(1);
 
             Assert.IsType<NoContentResult>(result);
-            Assert.Empty(context.Solutions);
         }
     }
 }
